@@ -1,9 +1,14 @@
 import OpenAI from "openai";
 import { RSSItem } from "./rss";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let openai: OpenAI;
+
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openai;
+}
 
 /**
  * Generate a blog post from an RSS article using OpenAI GPT-4o.
@@ -12,7 +17,7 @@ const openai = new OpenAI({
 export async function generateBlogContent(item: RSSItem): Promise<string> {
   console.log(`[OpenAI] Generating blog for: ${item.title}`);
 
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
     temperature: 1,
     max_tokens: 2500,

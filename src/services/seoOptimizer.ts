@@ -1,8 +1,13 @@
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+let openai: OpenAI;
+
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return openai;
+}
 
 interface SEOResult {
   optimizedContent: string;
@@ -12,19 +17,18 @@ interface SEOResult {
 }
 
 /**
- * Optimize blog content for SEO using Claude.
- * Mirrors the Make.com Claude step with the same prompts.
+ * Optimize blog content for SEO using OpenAI GPT-4o.
  */
 export async function optimizeForSEO(blogContent: string): Promise<SEOResult> {
-  console.log("[Claude] Optimizing content for SEO...");
+  console.log("[OpenAI] Optimizing content for SEO...");
 
-  const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
-    max_tokens: 2500,
+  const response = await getOpenAI().chat.completions.create({
+    model: "gpt-4o",
     temperature: 1,
+    max_tokens: 2500,
     messages: [
       {
-        role: "assistant",
+        role: "system",
         content: `Instruction 1: Make this blog post SEO-friendly by selecting and including at least 5 target keywords that are relevant to app development, AI software, and digital transformation. Choose keywords with realistic ranking potential based on search intent and relevance to the Australian tech market.
 
 Instruction 2: Use the **primary keyword** with a density of approximately 1–3% throughout the blog content. It should appear naturally in headings, body text, and summary paragraphs.
@@ -74,8 +78,7 @@ CATEGORY: [one of: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Cult
     ],
   });
 
-  const result =
-    response.content[0].type === "text" ? response.content[0].text : "";
+  const result = response.choices[0]?.message?.content || "";
 
   // Parse meta title, description, and category from the end of the response
   const metaTitleMatch = result.match(/META_TITLE:\s*(.+)/);
@@ -89,7 +92,7 @@ CATEGORY: [one of: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Cult
     .replace(/CATEGORY:\s*.+/, "")
     .trim();
 
-  console.log("[Claude] SEO optimization complete.");
+  console.log("[OpenAI] SEO optimization complete.");
 
   return {
     optimizedContent,
