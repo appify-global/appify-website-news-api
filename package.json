@@ -1,0 +1,35 @@
+{
+  "name": "appify-news-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Appify Newsroom - RSS automation + AI content generation",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx src/seed.ts",
+    "generate": "tsx src/cron/generateArticles.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@prisma/client": "^6.3.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "node-cron": "^3.0.3",
+    "openai": "^4.82.0",
+    "rss-parser": "^3.13.0",
+    "slugify": "^1.6.6"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.12.0",
+    "@types/node-cron": "^3.0.11",
+    "prisma": "^6.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

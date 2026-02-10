@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Article {
+  id              String                @id @default(uuid())
+  slug            String                @unique
+  title           String
+  excerpt         String
+  category        String
+  author          String                @default("Appify")
+  imageUrl        String                @map("image_url")
+  date            DateTime              @default(now())
+  isFeatured      Boolean               @default(false) @map("is_featured")
+  metaTitle       String?               @map("meta_title") @db.VarChar(60)
+  metaDescription String?               @map("meta_description") @db.VarChar(160)
+  sourceUrl       String?               @unique @map("source_url")
+  status          ArticleStatus         @default(draft)
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime              @updatedAt @map("updated_at")
+  contentBlocks   ArticleContentBlock[]
+
+  @@index([category])
+  @@index([status])
+  @@index([date(sort: Desc)])
+  @@index([isFeatured])
+  @@map("articles")
+}
+
+model ArticleContentBlock {
+  id        String    @id @default(uuid())
+  articleId String    @map("article_id")
+  type      BlockType
+  text      String?
+  src       String?
+  alt       String?
+  sortOrder Int       @map("sort_order")
+  article   Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([articleId, sortOrder])
+  @@index([articleId])
+  @@map("article_content_blocks")
+}
+
+enum ArticleStatus {
+  draft
+  published
+  pending_review
+
+  @@map("article_status")
+}
+
+enum BlockType {
+  paragraph
+  heading
+  image
+
+  @@map("block_type")
+}
