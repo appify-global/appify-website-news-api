@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { generateArticles } from "../cron/generateArticles";
 import { generateBlogContent } from "../services/contentGenerator";
 import { optimizeForSEO } from "../services/seoOptimizer";
@@ -61,11 +62,11 @@ adminRouter.post("/regenerate-content", async (_req, res) => {
     console.log("[ADMIN] Content regeneration triggered");
     
     // Regenerate published articles OR articles with NULL content
-    const articles = await prisma.article.findMany({
+    // First get all articles, then filter for NULL content in JavaScript
+    const allArticles = await prisma.article.findMany({
       where: {
         OR: [
           { status: "published" },
-          { content: null }, // Also regenerate articles with NULL content
         ],
       },
       select: {
@@ -78,8 +79,35 @@ adminRouter.post("/regenerate-content", async (_req, res) => {
         imageUrl: true,
         excerpt: true,
         metaDescription: true,
+        content: true, // Include content to check for null
       },
     });
+    
+    // Also get articles with NULL content (regardless of status)
+    const nullContentArticles = await prisma.article.findMany({
+      where: {
+        content: { equals: Prisma.JsonNull },
+      },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        sourceUrl: true,
+        status: true,
+        topics: true,
+        imageUrl: true,
+        excerpt: true,
+        metaDescription: true,
+        content: true,
+      },
+    });
+    
+    // Combine and deduplicate by id
+    const articleMap = new Map();
+    [...allArticles, ...nullContentArticles].forEach(article => {
+      articleMap.set(article.id, article);
+    });
+    const articles = Array.from(articleMap.values()).map(({ content, ...rest }) => rest);
     
     if (articles.length === 0) {
       return res.json({ 
