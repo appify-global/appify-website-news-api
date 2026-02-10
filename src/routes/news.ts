@@ -77,6 +77,71 @@ newsRouter.get("/", async (req, res) => {
   }
 });
 
+// GET /api/news/search?q=term — Search articles by title, excerpt, or content
+newsRouter.get("/search", async (req, res) => {
+  try {
+    const q = (req.query.q as string || "").trim();
+
+    if (!q) {
+      res.json([]);
+      return;
+    }
+
+    const articles = await prisma.article.findMany({
+      where: {
+        status: "published",
+        OR: [
+          { title: { contains: q, mode: "insensitive" } },
+          { excerpt: { contains: q, mode: "insensitive" } },
+          { topics: { contains: q, mode: "insensitive" } },
+          {
+            contentBlocks: {
+              some: {
+                text: { contains: q, mode: "insensitive" },
+              },
+            },
+          },
+        ],
+      },
+      include: {
+        contentBlocks: {
+          orderBy: { sortOrder: "asc" },
+        },
+      },
+      orderBy: { date: "desc" },
+      take: 20,
+    });
+
+    const mapped = articles.map((article) => ({
+      id: article.id,
+      slug: article.slug,
+      title: article.title,
+      excerpt: article.excerpt,
+      topics: article.topics,
+      author: article.author,
+      imageUrl: article.imageUrl,
+      date: article.date.toLocaleDateString("en-AU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }),
+      timestamp: getRelativeTime(article.createdAt),
+      isFeatured: article.isFeatured,
+      content: article.contentBlocks.map((block: ArticleContentBlock) => ({
+        type: block.type,
+        text: block.text,
+        src: block.src,
+        alt: block.alt,
+      })),
+    }));
+
+    res.json(mapped);
+  } catch (error: any) {
+    console.error("Error searching articles:", error);
+    res.status(500).json({ error: "Failed to search articles" });
+  }
+});
+
 // GET /api/news/:slug — Get single article by slug
 newsRouter.get("/:slug", async (req, res) => {
   try {

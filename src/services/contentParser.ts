@@ -1,7 +1,7 @@
 import slugify from "slugify";
 
 interface ContentBlock {
-  type: "paragraph" | "heading" | "image";
+  type: "paragraph" | "heading" | "subheading" | "image";
   text?: string;
   src?: string;
   alt?: string;
@@ -21,19 +21,36 @@ export function parseContentBlocks(htmlContent: string): ContentBlock[] {
     // Skip empty lines
     if (!trimmed) continue;
 
-    // Heading: <h2>...</h2> or <h3>...</h3> or ## ... or ### ...
-    if (trimmed.match(/^<h[23][^>]*>/i)) {
-      const text = trimmed.replace(/<\/?h[23][^>]*>/gi, "").trim();
+    // Heading: <h2>...</h2> → heading, <h3>...</h3> → subheading
+    if (trimmed.match(/^<h2[^>]*>/i)) {
+      const text = trimmed.replace(/<\/?h2[^>]*>/gi, "").trim();
       if (text) {
         blocks.push({ type: "heading", text });
       }
       continue;
     }
 
-    if (trimmed.match(/^#{2,3}\s+/)) {
-      const text = trimmed.replace(/^#{2,3}\s+/, "").trim();
+    if (trimmed.match(/^<h3[^>]*>/i)) {
+      const text = trimmed.replace(/<\/?h3[^>]*>/gi, "").trim();
+      if (text) {
+        blocks.push({ type: "subheading", text });
+      }
+      continue;
+    }
+
+    // Markdown: ## → heading, ### → subheading
+    if (trimmed.match(/^##\s+/)) {
+      const text = trimmed.replace(/^##\s+/, "").trim();
       if (text) {
         blocks.push({ type: "heading", text });
+      }
+      continue;
+    }
+
+    if (trimmed.match(/^###\s+/)) {
+      const text = trimmed.replace(/^###\s+/, "").trim();
+      if (text) {
+        blocks.push({ type: "subheading", text });
       }
       continue;
     }

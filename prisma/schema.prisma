@@ -58,6 +58,7 @@ enum ArticleStatus {
 enum BlockType {
   paragraph
   heading
+  subheading
   image
 
   @@map("block_type")
