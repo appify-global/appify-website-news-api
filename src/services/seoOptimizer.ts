@@ -13,7 +13,7 @@ interface SEOResult {
   optimizedContent: string;
   metaTitle: string;
   metaDescription: string;
-  category: string;
+  topics: string;
 }
 
 /**
@@ -69,7 +69,7 @@ If no relevant internal link fits the context, do not force it.
 Instruction 9: At the very end, output the following on separate lines:
 META_TITLE: [your meta title here]
 META_DESCRIPTION: [your meta description here]
-CATEGORY: [one of: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Culture]`,
+TOPICS: [one of: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Culture]`,
       },
       {
         role: "user",
@@ -80,16 +80,16 @@ CATEGORY: [one of: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Cult
 
   const result = response.choices[0]?.message?.content || "";
 
-  // Parse meta title, description, and category from the end of the response
+  // Parse meta title, description, and topics from the end of the response
   const metaTitleMatch = result.match(/META_TITLE:\s*(.+)/);
   const metaDescMatch = result.match(/META_DESCRIPTION:\s*(.+)/);
-  const categoryMatch = result.match(/CATEGORY:\s*(.+)/);
+  const topicsMatch = result.match(/TOPICS:\s*(.+)/);
 
   // Remove the meta lines from the content
   const optimizedContent = result
     .replace(/META_TITLE:\s*.+/, "")
     .replace(/META_DESCRIPTION:\s*.+/, "")
-    .replace(/CATEGORY:\s*.+/, "")
+    .replace(/TOPICS:\s*.+/, "")
     .trim();
 
   console.log("[OpenAI] SEO optimization complete.");
@@ -98,6 +98,6 @@ CATEGORY: [one of: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Cult
     optimizedContent,
     metaTitle: metaTitleMatch?.[1]?.trim().slice(0, 60) || "",
     metaDescription: metaDescMatch?.[1]?.trim().slice(0, 160) || "",
-    category: categoryMatch?.[1]?.trim() || "AI",
+    topics: topicsMatch?.[1]?.trim() || "AI",
   };
 }

@@ -44,7 +44,7 @@ export async function generateArticles(): Promise<void> {
           slug,
           title: item.title,
           excerpt: excerpt || item.contentSnippet || "",
-          category: seoResult.category,
+          topics: seoResult.topics,
           author: "Appify",
           imageUrl: item.enclosure?.url || "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80",
           date: item.pubDate ? new Date(item.pubDate) : new Date(),

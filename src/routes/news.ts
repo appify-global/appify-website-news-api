@@ -7,19 +7,28 @@ export const newsRouter = Router();
 // GET /api/news — List all published articles
 newsRouter.get("/", async (req, res) => {
   try {
+<<<<<<< Updated upstream
     const category = req.query.category as string | undefined;
     const status = req.query.status as string | undefined;
     const featured = req.query.featured as string | undefined;
     const limit = req.query.limit as string | undefined;
     const offset = req.query.offset as string | undefined;
+=======
+    const { topics, status, featured, limit, offset } = req.query;
+>>>>>>> Stashed changes
 
     const where: any = {};
 
     // Default to published articles for public requests
     where.status = status || "published";
 
+<<<<<<< Updated upstream
     if (category) {
       where.category = { equals: category, mode: "insensitive" };
+=======
+    if (topics) {
+      where.topics = { equals: topics as string, mode: "insensitive" };
+>>>>>>> Stashed changes
     }
 
     if (featured === "true") {
@@ -44,7 +53,7 @@ newsRouter.get("/", async (req, res) => {
       slug: article.slug,
       title: article.title,
       excerpt: article.excerpt,
-      category: article.category,
+      topics: article.topics,
       author: article.author,
       imageUrl: article.imageUrl,
       date: article.date.toLocaleDateString("en-AU", {
@@ -96,7 +105,7 @@ newsRouter.get("/:slug", async (req, res) => {
       slug: article.slug,
       title: article.title,
       excerpt: article.excerpt,
-      category: article.category,
+      topics: article.topics,
       author: article.author,
       imageUrl: article.imageUrl,
       date: article.date.toLocaleDateString("en-AU", {
@@ -129,7 +138,7 @@ newsRouter.post("/", async (req, res) => {
       slug,
       title,
       excerpt,
-      category,
+      topics,
       author,
       imageUrl,
       date,
@@ -142,9 +151,15 @@ newsRouter.post("/", async (req, res) => {
     } = req.body;
 
     // Validate required fields
+<<<<<<< Updated upstream
     if (!slug || !title || !excerpt || !category || !imageUrl) {
       res.status(400).json({
         error: "Missing required fields: slug, title, excerpt, category, imageUrl",
+=======
+    if (!slug || !title || !excerpt || !topics || !imageUrl) {
+      return res.status(400).json({
+        error: "Missing required fields: slug, title, excerpt, topics, imageUrl",
+>>>>>>> Stashed changes
       });
       return;
     }
@@ -168,7 +183,7 @@ newsRouter.post("/", async (req, res) => {
         slug,
         title,
         excerpt,
-        category,
+        topics,
         author: author || "Appify",
         imageUrl,
         date: date ? new Date(date) : new Date(),

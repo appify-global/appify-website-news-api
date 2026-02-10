@@ -12,7 +12,7 @@ model Article {
   slug            String                @unique
   title           String
   excerpt         String
-  category        String
+  topics          String
   author          String                @default("Appify")
   imageUrl        String                @map("image_url")
   date            DateTime              @default(now())
@@ -25,7 +25,7 @@ model Article {
   updatedAt       DateTime              @updatedAt @map("updated_at")
   contentBlocks   ArticleContentBlock[]
 
-  @@index([category])
+  @@index([topics])
   @@index([status])
   @@index([date(sort: Desc)])
   @@index([isFeatured])
