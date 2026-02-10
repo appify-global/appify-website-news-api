@@ -49,7 +49,12 @@ export async function generateArticles(): Promise<void> {
       // Step 7: Parse HTML into content blocks
       const contentBlocks = parseContentBlocks(htmlContent);
       const slug = generateSlug(blogTitle); // Use generated title for slug
-      const excerpt = generateExcerpt(contentBlocks, metaDescription) || metaDescription.slice(0, 250);
+      // Generate excerpt (limit to reasonable length for database)
+      let excerpt = generateExcerpt(contentBlocks, metaDescription) || metaDescription.slice(0, 250);
+      // Ensure excerpt doesn't exceed database limits (typically 500-1000 chars, but be safe with 500)
+      if (excerpt.length > 500) {
+        excerpt = excerpt.slice(0, 497) + "...";
+      }
 
       // Step 8: Get image - use RSS image first, then generate with Grok-2-Image
       let imageUrl = item.imageUrl || item.enclosure?.url || "";
@@ -78,8 +83,8 @@ export async function generateArticles(): Promise<void> {
           imageUrl,
           date: item.pubDate ? new Date(item.pubDate) : new Date(),
           isFeatured: false,
-          metaTitle: seoResult.metaTitle || blogTitle.slice(0, 60), // Fallback to title if needed
-          metaDescription: metaDescription,
+          metaTitle: (seoResult.metaTitle || blogTitle.slice(0, 60)).slice(0, 60), // Max 60 chars
+          metaDescription: metaDescription.slice(0, 160), // Max 160 chars
           sourceUrl: item.link,
           status: "pending_review",
           contentBlocks: {
