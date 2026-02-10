@@ -7,28 +7,19 @@ export const newsRouter = Router();
 // GET /api/news — List all published articles
 newsRouter.get("/", async (req, res) => {
   try {
-<<<<<<< Updated upstream
-    const category = req.query.category as string | undefined;
+    const topics = req.query.topics as string | undefined;
     const status = req.query.status as string | undefined;
     const featured = req.query.featured as string | undefined;
     const limit = req.query.limit as string | undefined;
     const offset = req.query.offset as string | undefined;
-=======
-    const { topics, status, featured, limit, offset } = req.query;
->>>>>>> Stashed changes
 
     const where: any = {};
 
     // Default to published articles for public requests
     where.status = status || "published";
 
-<<<<<<< Updated upstream
-    if (category) {
-      where.category = { equals: category, mode: "insensitive" };
-=======
     if (topics) {
-      where.topics = { equals: topics as string, mode: "insensitive" };
->>>>>>> Stashed changes
+      where.topics = { equals: topics, mode: "insensitive" };
     }
 
     if (featured === "true") {
@@ -151,15 +142,9 @@ newsRouter.post("/", async (req, res) => {
     } = req.body;
 
     // Validate required fields
-<<<<<<< Updated upstream
-    if (!slug || !title || !excerpt || !category || !imageUrl) {
-      res.status(400).json({
-        error: "Missing required fields: slug, title, excerpt, category, imageUrl",
-=======
     if (!slug || !title || !excerpt || !topics || !imageUrl) {
-      return res.status(400).json({
+      res.status(400).json({
         error: "Missing required fields: slug, title, excerpt, topics, imageUrl",
->>>>>>> Stashed changes
       });
       return;
     }
