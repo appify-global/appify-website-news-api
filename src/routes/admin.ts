@@ -55,18 +55,29 @@ adminRouter.post("/publish-all", async (_req, res) => {
   }
 });
 
-// POST /api/admin/regenerate-content - Regenerate content for all published articles
+// POST /api/admin/regenerate-content - Regenerate content for all published articles (or articles with NULL content)
 adminRouter.post("/regenerate-content", async (_req, res) => {
   try {
     console.log("[ADMIN] Content regeneration triggered");
     
+    // Regenerate published articles OR articles with NULL content
     const articles = await prisma.article.findMany({
-      where: { status: "published" },
+      where: {
+        OR: [
+          { status: "published" },
+          { content: null }, // Also regenerate articles with NULL content
+        ],
+      },
       select: {
         id: true,
         slug: true,
         title: true,
         sourceUrl: true,
+        status: true,
+        topics: true,
+        imageUrl: true,
+        excerpt: true,
+        metaDescription: true,
       },
     });
     
