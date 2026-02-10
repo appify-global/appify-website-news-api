@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
-import { ArticleContentBlock } from "@prisma/client";
 
 export const newsRouter = Router();
 
@@ -28,11 +27,6 @@ newsRouter.get("/", async (req, res) => {
 
     const articles = await prisma.article.findMany({
       where,
-      include: {
-        contentBlocks: {
-          orderBy: { sortOrder: "asc" },
-        },
-      },
       orderBy: { date: "desc" },
       take: limit ? parseInt(limit) : 50,
       skip: offset ? parseInt(offset) : 0,
@@ -57,12 +51,7 @@ newsRouter.get("/", async (req, res) => {
       metaTitle: article.metaTitle,
       metaDescription: article.metaDescription,
       status: article.status,
-      content: article.contentBlocks.map((block: ArticleContentBlock) => ({
-        type: block.type,
-        text: block.text,
-        src: block.src,
-        alt: block.alt,
-      })),
+      content: (article.content as any) || [], // Read from JSON column
     }));
 
     res.json(mapped);
@@ -84,11 +73,6 @@ newsRouter.get("/:slug", async (req, res) => {
 
     const article = await prisma.article.findUnique({
       where: { slug },
-      include: {
-        contentBlocks: {
-          orderBy: { sortOrder: "asc" },
-        },
-      },
     });
 
     if (!article) {
@@ -114,12 +98,7 @@ newsRouter.get("/:slug", async (req, res) => {
       metaTitle: article.metaTitle,
       metaDescription: article.metaDescription,
       status: article.status,
-      content: article.contentBlocks.map((block: ArticleContentBlock) => ({
-        type: block.type,
-        text: block.text,
-        src: block.src,
-        alt: block.alt,
-      })),
+      content: (article.content as any) || [], // Read from JSON column
     });
   } catch (error) {
     console.error("Error fetching article:", error);
@@ -182,27 +161,7 @@ newsRouter.post("/", async (req, res) => {
         metaDescription,
         sourceUrl,
         status: status || "draft",
-        contentBlocks: content
-          ? {
-              create: content.map(
-                (
-                  block: { type: string; text?: string; src?: string; alt?: string },
-                  index: number
-                ) => ({
-                  type: block.type,
-                  text: block.text,
-                  src: block.src,
-                  alt: block.alt,
-                  sortOrder: index,
-                })
-              ),
-            }
-          : undefined,
-      },
-      include: {
-        contentBlocks: {
-          orderBy: { sortOrder: "asc" },
-        },
+        content: content ? (content as any) : null, // Store as JSON
       },
     });
 

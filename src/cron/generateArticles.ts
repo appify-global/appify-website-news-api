@@ -73,6 +73,14 @@ export async function generateArticles(): Promise<void> {
       }
 
       // Step 9: Save to database
+      // Store content blocks as JSON array (much simpler than separate table)
+      const contentJson = contentBlocks.map((block) => ({
+        type: block.type,
+        text: block.text || null,
+        src: block.src || null,
+        alt: block.alt || null,
+      }));
+
       const article = await prisma.article.create({
         data: {
           slug,
@@ -87,15 +95,7 @@ export async function generateArticles(): Promise<void> {
           metaDescription: metaDescription.slice(0, 160), // Max 160 chars
           sourceUrl: item.link,
           status: "pending_review",
-          contentBlocks: {
-            create: contentBlocks.map((block, index) => ({
-              type: block.type,
-              text: block.text,
-              src: block.src,
-              alt: block.alt,
-              sortOrder: index,
-            })),
-          },
+          content: contentJson as any, // Store as JSON
         },
       });
 

@@ -23,28 +23,14 @@ model Article {
   status          ArticleStatus         @default(draft)
   createdAt       DateTime              @default(now()) @map("created_at")
   updatedAt       DateTime              @updatedAt @map("updated_at")
-  contentBlocks   ArticleContentBlock[]
+  // Store content blocks as JSON array - much simpler than separate table
+  content         Json?                 // Array of {type, text?, src?, alt?}
 
   @@index([topics])
   @@index([status])
   @@index([date(sort: Desc)])
   @@index([isFeatured])
   @@map("articles")
-}
-
-model ArticleContentBlock {
-  id        String    @id @default(uuid())
-  articleId String    @map("article_id")
-  type      BlockType
-  text      String?
-  src       String?
-  alt       String?
-  sortOrder Int       @map("sort_order")
-  article   Article   @relation(fields: [articleId], references: [id], onDelete: Cascade)
-
-  @@unique([articleId, sortOrder])
-  @@index([articleId])
-  @@map("article_content_blocks")
 }
 
 enum ArticleStatus {
@@ -55,10 +41,4 @@ enum ArticleStatus {
   @@map("article_status")
 }
 
-enum BlockType {
-  paragraph
-  heading
-  image
-
-  @@map("block_type")
-}
+// BlockType enum removed - using JSON structure instead
