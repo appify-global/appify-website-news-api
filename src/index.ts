@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import cron from "node-cron";
 import { newsRouter } from "./routes/news";
+import { adminRouter } from "./routes/admin";
 import { generateArticles } from "./cron/generateArticles";
 
 const app = express();
@@ -27,6 +28,7 @@ app.use("/api/news", (req, res, next) => {
 
 // Routes
 app.use("/api/news", newsRouter);
+app.use("/api/admin", adminRouter);
 
 // Health check
 app.get("/health", (_req, res) => {
