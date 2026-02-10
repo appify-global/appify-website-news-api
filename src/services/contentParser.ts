@@ -59,7 +59,33 @@ export function parseContentBlocks(htmlContent: string): ContentBlock[] {
       .replace(/<\/?ul>/gi, "")
       .replace(/<\/?li>/gi, "")
       .replace(/<\/?ol>/gi, "")
+      .replace(/<\/?div[^>]*>/gi, "")
+      .replace(/<\/?span[^>]*>/gi, "")
+      .replace(/<\/?br\s*\/?>/gi, " ")
+      .replace(/&nbsp;/gi, " ")
       .trim();
+
+    // Remove any remaining stray HTML tags (except <a> which we keep for links)
+    // First extract <a> tags, then remove all other HTML, then restore <a> tags
+    const linkMatches: Array<{ placeholder: string; original: string }> = [];
+    let linkIndex = 0;
+    text = text.replace(/<a[^>]*>[\s\S]*?<\/a>/gi, (match) => {
+      const placeholder = `__LINK_${linkIndex}__`;
+      linkMatches.push({ placeholder, original: match });
+      linkIndex++;
+      return placeholder;
+    });
+    
+    // Remove all remaining HTML tags
+    text = text.replace(/<[^>]+>/g, "");
+    
+    // Restore <a> tags
+    linkMatches.forEach(({ placeholder, original }) => {
+      text = text.replace(placeholder, original);
+    });
+
+    // Clean up extra whitespace
+    text = text.replace(/\s+/g, " ").trim();
 
     // Keep <a> tags as-is (they contain internal/external links from SEO step)
     if (text) {

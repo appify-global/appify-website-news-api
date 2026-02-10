@@ -46,10 +46,35 @@ Only output valid HTML — no labels, commentary, or non-HTML content.`,
     ],
   });
 
-  const htmlContent = response.choices[0]?.message?.content;
+  let htmlContent = response.choices[0]?.message?.content;
   if (!htmlContent) {
     throw new Error("OpenAI returned empty HTML content");
   }
+
+  // Clean up any stray content from OpenAI
+  // Remove markdown code blocks (```html, ```)
+  htmlContent = htmlContent.replace(/```html\s*/gi, "");
+  htmlContent = htmlContent.replace(/```\s*/g, "");
+  
+  // Remove any explanations before/after HTML (common OpenAI behavior)
+  // Find the first < and last > to extract only HTML content
+  const firstTag = htmlContent.indexOf("<");
+  const lastTag = htmlContent.lastIndexOf(">");
+  
+  if (firstTag !== -1 && lastTag !== -1 && lastTag > firstTag) {
+    htmlContent = htmlContent.substring(firstTag, lastTag + 1);
+  }
+  
+  // Remove any remaining non-HTML text at start/end
+  htmlContent = htmlContent.replace(/^[^<]*/, ""); // Remove text before first <
+  htmlContent = htmlContent.replace(/[^>]*$/, ""); // Remove text after last >
+  
+  // Remove any stray HTML comments
+  htmlContent = htmlContent.replace(/<!--[\s\S]*?-->/g, "");
+  
+  // Remove any script/style tags that might have slipped through
+  htmlContent = htmlContent.replace(/<script[\s\S]*?<\/script>/gi, "");
+  htmlContent = htmlContent.replace(/<style[\s\S]*?<\/style>/gi, "");
 
   console.log("[OpenAI] HTML conversion complete.");
   return htmlContent.trim();
