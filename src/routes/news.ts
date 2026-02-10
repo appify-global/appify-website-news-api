@@ -27,7 +27,7 @@ newsRouter.get("/", async (req, res) => {
 
     const articles = await prisma.article.findMany({
       where,
-      orderBy: { date: "desc" },
+      orderBy: { createdAt: "desc" }, // Sort by creation date (newest first)
       take: limit ? parseInt(limit) : 50,
       skip: offset ? parseInt(offset) : 0,
     });
