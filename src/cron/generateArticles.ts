@@ -1,12 +1,15 @@
 import { fetchNewRSSItems } from "../services/rss";
 import { generateBlogContent } from "../services/contentGenerator";
 import { optimizeForSEO } from "../services/seoOptimizer";
+import { convertToHTML } from "../services/htmlConverter";
+import { generateBlogTitle } from "../services/titleGenerator";
+import { generateMetaDescription } from "../services/metaDescriptionGenerator";
 import { generateImage } from "../services/imageGenerator";
 import { parseContentBlocks, generateSlug, generateExcerpt } from "../services/contentParser";
 import { prisma } from "../lib/prisma";
 
 /**
- * Full pipeline: RSS → OpenAI → Claude → Parse → Save to DB
+ * Full pipeline: RSS → OpenAI (Blog) → OpenAI (SEO) → OpenAI (HTML) → OpenAI (Title) → OpenAI (Meta) → Grok (Image) → Parse → Save
  * This replaces the entire Make.com automation flow.
  */
 export async function generateArticles(): Promise<void> {
@@ -31,38 +34,47 @@ export async function generateArticles(): Promise<void> {
       // Step 2: Generate blog content with OpenAI
       const rawBlog = await generateBlogContent(item);
 
-      // Step 3: SEO optimize with Claude
+      // Step 3: SEO optimize with OpenAI
       const seoResult = await optimizeForSEO(rawBlog);
 
-      // Step 4: Parse into content blocks
-      const contentBlocks = parseContentBlocks(seoResult.optimizedContent);
-      const slug = generateSlug(item.title);
-      const excerpt = generateExcerpt(contentBlocks);
+      // Step 4: Convert to clean HTML with OpenAI
+      const htmlContent = await convertToHTML(seoResult.optimizedContent);
 
-      // Step 5: Get image — use RSS image or generate with Grok
+      // Step 5: Generate title with OpenAI
+      const blogTitle = await generateBlogTitle(htmlContent);
+
+      // Step 6: Generate meta description with OpenAI
+      const metaDescription = await generateMetaDescription(htmlContent);
+
+      // Step 7: Parse HTML into content blocks
+      const contentBlocks = parseContentBlocks(htmlContent);
+      const slug = generateSlug(blogTitle); // Use generated title for slug
+      const excerpt = generateExcerpt(contentBlocks) || metaDescription.slice(0, 200);
+
+      // Step 8: Generate image with Grok (or use RSS image)
       let imageUrl = item.enclosure?.url || "";
       if (!imageUrl) {
         try {
-          imageUrl = await generateImage(item.title, seoResult.topics);
+          imageUrl = await generateImage(blogTitle, seoResult.topics);
         } catch (imgError) {
           console.error("[Pipeline] Image generation failed, using placeholder:", imgError);
           imageUrl = "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80";
         }
       }
 
-      // Step 6: Save to database
+      // Step 9: Save to database
       const article = await prisma.article.create({
         data: {
           slug,
-          title: item.title,
-          excerpt: excerpt || item.contentSnippet || "",
+          title: blogTitle, // Use generated title instead of RSS title
+          excerpt,
           topics: seoResult.topics,
           author: "Appify",
           imageUrl,
           date: item.pubDate ? new Date(item.pubDate) : new Date(),
           isFeatured: false,
-          metaTitle: seoResult.metaTitle,
-          metaDescription: seoResult.metaDescription,
+          metaTitle: seoResult.metaTitle || blogTitle.slice(0, 60), // Fallback to title if needed
+          metaDescription: metaDescription,
           sourceUrl: item.link,
           status: "pending_review",
           contentBlocks: {
