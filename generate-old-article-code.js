@@ -49,15 +49,33 @@ async function generateOldArticle() {
         // Pre-filter: Check if article matches our allowed topics
         // Skip articles that clearly don't match (e.g., sports, politics, etc.)
         const itemContent = (item.contentSnippet || item.content || item.title || "").toLowerCase();
+        
+        // Check for non-tech topics that should be excluded
+        const excludedTopics = [
+          "figure skating", "skating", "olympics", "sports", "athlete", "athletic",
+          "politics", "political", "election", "government", "senate", "congress",
+          "weather", "climate", "hurricane", "tornado", "earthquake",
+          "celebrity", "entertainment", "movie", "tv show", "music album"
+        ];
+        
+        const hasExcludedTopic = excludedTopics.some(topic => itemContent.includes(topic));
+        if (hasExcludedTopic) {
+          console.log(`⚠️  Skipping article - contains excluded topic: ${item.title}`);
+          continue; // Skip this article
+        }
+        
+        // Check for tech-related topics
         const hasRelevantTopic = 
           itemContent.includes("ai") || itemContent.includes("artificial intelligence") ||
-          itemContent.includes("automation") || itemContent.includes("web") ||
+          itemContent.includes("automation") || itemContent.includes("web development") ||
           itemContent.includes("startup") || itemContent.includes("defi") ||
           itemContent.includes("web3") || itemContent.includes("blockchain") ||
           itemContent.includes("design") || itemContent.includes("culture") ||
-          itemContent.includes("work") || itemContent.includes("technology") ||
-          itemContent.includes("app") || itemContent.includes("software") ||
-          itemContent.includes("tech") || itemContent.includes("digital");
+          itemContent.includes("workplace") || itemContent.includes("technology") ||
+          itemContent.includes("app development") || itemContent.includes("software") ||
+          itemContent.includes("tech") || itemContent.includes("digital") ||
+          itemContent.includes("computer") || itemContent.includes("internet") ||
+          itemContent.includes("coding") || itemContent.includes("programming");
         
         // Check RSS categories if available
         const rssCategories = item.categories || [];
@@ -65,11 +83,13 @@ async function generateOldArticle() {
           const catLower = (cat || "").toLowerCase();
           return catLower.includes("tech") || catLower.includes("ai") || 
                  catLower.includes("automation") || catLower.includes("web") ||
-                 catLower.includes("startup") || catLower.includes("design");
+                 catLower.includes("startup") || catLower.includes("design") ||
+                 catLower.includes("business") || catLower.includes("science");
         });
         
-        if (!hasRelevantTopic && !hasRelevantCategory && rssCategories.length > 0) {
-          console.log(`⚠️  Skipping article - doesn't match our topics: ${item.title}`);
+        // Only generate if it has relevant tech topic AND doesn't have excluded topics
+        if (!hasRelevantTopic && !hasRelevantCategory) {
+          console.log(`⚠️  Skipping article - doesn't match our tech topics: ${item.title}`);
           continue; // Skip this article
         }
         
