@@ -49,13 +49,35 @@ async function generateOldArticle() {
         console.log(`✅ Found unprocessed article: ${item.title}`);
         console.log(`   Link: ${item.link}\n`);
 
-        // Extract image
+        // Extract image - check multiple sources
         let imageUrl = item.enclosure?.url || "";
+        
+        // Check content for images
         if (item.content) {
-          const imgMatch = item.content.match(/<img[^>]+src="([^"]+)"[^>]*>/i);
+          const imgMatches = item.content.match(/<img[^>]+src="([^"]+)"[^>]*>/gi);
+          if (imgMatches && imgMatches.length > 0) {
+            // Get the first image URL
+            const firstImg = imgMatches[0].match(/src="([^"]+)"/i);
+            if (firstImg && firstImg[1]) {
+              imageUrl = firstImg[1];
+            }
+          }
+        }
+        
+        // Check contentSnippet
+        if (!imageUrl && item.contentSnippet) {
+          const imgMatch = item.contentSnippet.match(/<img[^>]+src="([^"]+)"[^>]*>/i);
           if (imgMatch && imgMatch[1]) {
             imageUrl = imgMatch[1];
           }
+        }
+        
+        // Check for media:content or itunes:image
+        if (!imageUrl && item["media:content"]?.url) {
+          imageUrl = item["media:content"].url;
+        }
+        if (!imageUrl && item["itunes:image"]?.href) {
+          imageUrl = item["itunes:image"].href;
         }
 
         const rssItem = {
@@ -70,10 +92,16 @@ async function generateOldArticle() {
 
         console.log("🚀 Generating article using CODE-BASED generation...\n");
 
-        // Step 1: Generate blog content
+        // Step 1: Generate blog content (this also extracts image from article page)
         console.log("Step 1: Generating blog content...");
         const rawBlog = await generateBlogContent(rssItem);
         console.log(`✅ Generated ${rawBlog.split(/\s+/).length} words\n`);
+        
+        // Check if image was extracted during content generation
+        if (rssItem.imageUrl && !imageUrl) {
+          imageUrl = rssItem.imageUrl;
+          console.log(`✅ Image extracted from article page: ${imageUrl.substring(0, 80)}...\n`);
+        }
 
         // Step 2: SEO optimization
         console.log("Step 2: SEO optimization...");
@@ -103,20 +131,20 @@ async function generateOldArticle() {
           excerpt = excerpt.slice(0, 497) + "...";
         }
 
-        // Step 7: Handle image - use RSS image first, upload to Railbucket
+        // Step 7: Handle image - use RSS image or extracted image, upload to Railbucket
         if (imageUrl) {
-          console.log("Step 6: Uploading RSS image to Railbucket...");
+          console.log("Step 7: Uploading image to Railbucket...");
           try {
-            const filename = `${slugify(blogTitle, { lower: true, strict: true })}-rss-${Date.now()}.png`;
+            const filename = `${slugify(blogTitle, { lower: true, strict: true })}-${Date.now()}.png`;
             imageUrl = await uploadImageToRailbucket(imageUrl, filename);
-            console.log("✅ RSS image uploaded to Railbucket\n");
+            console.log("✅ Image uploaded to Railbucket\n");
           } catch (uploadError) {
-            console.error("⚠️  Failed to upload RSS image, using original URL:", uploadError.message);
+            console.error("⚠️  Failed to upload image, using original URL:", uploadError.message);
             // Keep original URL if upload fails
           }
         } else {
-          // No RSS image - use placeholder (code-based mode doesn't generate images)
-          console.log("Step 6: No RSS image found, using placeholder...");
+          // No image found anywhere - use placeholder (code-based mode doesn't generate images)
+          console.log("Step 7: No image found, using placeholder...");
           imageUrl = "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80";
           console.log("✅ Using placeholder image\n");
         }

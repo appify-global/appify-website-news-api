@@ -60,6 +60,33 @@ export async function generateArticles(): Promise<void> {
   for (const item of itemsToProcess) {
     try {
       console.log(`\n[Pipeline] --- Processing: ${item.title} ---`);
+      
+      // Pre-filter: Check if article matches our allowed topics
+      // Skip articles that clearly don't match (e.g., sports, politics, etc.)
+      const itemContent = (item.contentSnippet || item.content || item.title || "").toLowerCase();
+      const hasRelevantTopic = 
+        itemContent.includes("ai") || itemContent.includes("artificial intelligence") ||
+        itemContent.includes("automation") || itemContent.includes("web") ||
+        itemContent.includes("startup") || itemContent.includes("defi") ||
+        itemContent.includes("web3") || itemContent.includes("blockchain") ||
+        itemContent.includes("design") || itemContent.includes("culture") ||
+        itemContent.includes("work") || itemContent.includes("technology") ||
+        itemContent.includes("app") || itemContent.includes("software") ||
+        itemContent.includes("tech") || itemContent.includes("digital");
+      
+      // Check RSS categories if available
+      const rssCategories = item.categories || [];
+      const hasRelevantCategory = rssCategories.some((cat: string) => {
+        const catLower = cat.toLowerCase();
+        return catLower.includes("tech") || catLower.includes("ai") || 
+               catLower.includes("automation") || catLower.includes("web") ||
+               catLower.includes("startup") || catLower.includes("design");
+      });
+      
+      if (!hasRelevantTopic && !hasRelevantCategory && rssCategories.length > 0) {
+        console.log(`[Pipeline] ⚠️  Skipping article - doesn't match our topics: ${item.title}`);
+        continue; // Skip this article
+      }
 
       // Step 2: Generate blog content (OpenAI or Code)
       const rawBlog = await generateBlogContent(item);
@@ -90,28 +117,39 @@ export async function generateArticles(): Promise<void> {
         excerpt = excerpt.slice(0, 497) + "...";
       }
 
-      // Step 8: Get image - use RSS image first, then generate with Grok-2-Image (OpenAI mode only)
+      // Step 8: Get image - use RSS image first, then try to extract from article page, then generate with Grok-2-Image (OpenAI mode only)
       // All images are uploaded to Railbucket for consistent storage
       let imageUrl = item.imageUrl || item.enclosure?.url || "";
       
+      // If no RSS image and using code-based generation, try to extract from article page
+      if (!imageUrl && USE_CODE_GENERATION) {
+        console.log("[Pipeline] No RSS image found, checking if image was extracted from article page...");
+        // The generateBlogContent function should have set item.imageUrl if it found an image
+        // This happens in contentGeneratorCode.ts when fetchArticleContent extracts og:image
+        if (item.imageUrl) {
+          imageUrl = item.imageUrl;
+          console.log("[Pipeline] Found image from article page extraction");
+        }
+      }
+      
       if (imageUrl) {
-        // RSS image available - upload to Railbucket (both modes)
-        console.log("[Pipeline] Using image from RSS feed, uploading to Railbucket...");
+        // Image available - upload to Railbucket (both modes)
+        console.log("[Pipeline] Using image, uploading to Railbucket...");
         try {
-          const filename = `${slugify(blogTitle, { lower: true, strict: true })}-rss-${Date.now()}.png`;
+          const filename = `${slugify(blogTitle, { lower: true, strict: true })}-${Date.now()}.png`;
           imageUrl = await uploadImageToRailbucket(imageUrl, filename);
-          console.log("[Pipeline] RSS image uploaded to Railbucket");
+          console.log("[Pipeline] Image uploaded to Railbucket");
         } catch (uploadError) {
-          console.error("[Pipeline] Failed to upload RSS image to Railbucket, using original URL:", uploadError);
+          console.error("[Pipeline] Failed to upload image to Railbucket, using original URL:", uploadError);
           // Keep original URL if upload fails
         }
       } else {
-        // No RSS image - generate with Grok (OpenAI mode) or use placeholder (Code mode)
+        // No image found anywhere - generate with Grok (OpenAI mode) or use placeholder (Code mode)
         if (USE_CODE_GENERATION) {
-          console.log("[Pipeline] No RSS image found, using placeholder (code-based mode)");
+          console.log("[Pipeline] No image found anywhere, using placeholder (code-based mode)");
           imageUrl = "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80";
         } else {
-          console.log("[Pipeline] No RSS image found, generating with Grok-2-Image...");
+          console.log("[Pipeline] No image found, generating with Grok-2-Image...");
           try {
             imageUrl = await generateImage(blogTitle, seoResult.topics);
             console.log("[Pipeline] Image generated successfully with Grok-2-Image");

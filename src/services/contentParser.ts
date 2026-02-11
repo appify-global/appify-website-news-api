@@ -93,6 +93,21 @@ export function parseContentBlocks(htmlContent: string): ContentBlock[] {
       .replace(/<\/?br\s*\/?>/gi, " ")
       .replace(/&nbsp;/gi, " ")
       .trim();
+    
+    // Remove markdown headings that might have slipped through
+    text = text.replace(/^##+\s+[^\n]+/gm, "").trim();
+    
+    // Remove UI elements
+    text = text.replace(/^(Save Story|Share|Subscribe|Sign up|Photograph:)[^\n]*/gim, "").trim();
+    
+    // Decode HTML entities
+    text = text
+      .replace(/&#039;/g, "'")
+      .replace(/&apos;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">");
 
     // Remove any remaining stray HTML tags (except <a> which we keep for links)
     // First extract <a> tags, then remove all other HTML, then restore <a> tags
@@ -147,6 +162,14 @@ export function generateExcerpt(blocks: ContentBlock[], metaDescription?: string
     // Remove hashtags and clean up
     let clean = metaDescription
       .replace(/#\w+/g, "") // Remove hashtags
+      // Decode HTML entities
+      .replace(/&#039;/g, "'")
+      .replace(/&apos;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/&amp;/g, "&")
+      // Remove generic boilerplate
+      .replace(/is a key focus in today's technology landscape\.?/gi, "")
+      .replace(/Learn about the latest developments in app development and technology\.?/gi, "")
       .replace(/\s+/g, " ") // Normalize whitespace
       .trim();
     
@@ -177,13 +200,25 @@ export function generateExcerpt(blocks: ContentBlock[], metaDescription?: string
       let text = p.text || "";
       // Remove HTML tags
       text = text.replace(/<[^>]+>/g, "");
+      // Decode HTML entities (fix &#039; and other entities)
+      text = text
+        .replace(/&#039;/g, "'")
+        .replace(/&apos;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&nbsp;/g, " ");
       // Remove hashtags
       text = text.replace(/#\w+/g, "");
+      // Remove generic boilerplate text that might have been added
+      text = text.replace(/is a key focus in today's technology landscape\.?/gi, "");
+      text = text.replace(/Learn about the latest developments in app development and technology\.?/gi, "");
       // Clean up whitespace
       text = text.replace(/\s+/g, " ").trim();
       return text;
     })
-    .filter((t) => t.length > 0)
+    .filter((t) => t.length > 0 && !t.match(/^(App development|app development)/i)) // Filter out generic starts
     .join(" ");
 
   // Limit to ~250 characters for 2-3 lines

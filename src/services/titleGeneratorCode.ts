@@ -16,20 +16,10 @@ export async function generateBlogTitle(content: string, rssTitle?: string): Pro
     // Remove common prefixes
     title = title.replace(/^(Breaking|News|Update):\s*/i, "");
     
-    // Add keyword if not present
-    const keywords = ["app development", "AI app development", "mobile app developers"];
-    const hasKeyword = keywords.some((kw) => title.toLowerCase().includes(kw.toLowerCase()));
+    // Don't truncate - use full RSS title
+    // The RSS title is usually well-formatted and should be preserved as-is
     
-    if (!hasKeyword && title.length < 50) {
-      title = `${title}: App Development Insights`;
-    }
-    
-    // Ensure under 60 characters
-    if (title.length > 60) {
-      title = title.slice(0, 57) + "...";
-    }
-    
-    console.log(`[Code] Generated title from RSS: ${title}`);
+    console.log(`[Code] Using full RSS title: ${title}`);
     return title;
   }
 
@@ -43,8 +33,8 @@ export async function generateBlogTitle(content: string, rssTitle?: string): Pro
     
     // Skip generic headings
     if (!title.match(/^(Introduction|Conclusion|Key Points|Key Insights|Implications)$/i)) {
-      // Ensure it's under 60 characters
-      if (title.length <= 60 && title.length > 5) {
+      // Return title if it's valid (length > 5)
+      if (title.length > 5) {
         console.log(`[Code] Generated title from HTML heading: ${title}`);
         return title;
       }
@@ -61,16 +51,9 @@ export async function generateBlogTitle(content: string, rssTitle?: string): Pro
     
     // Skip generic headings
     if (!title.match(/^(Introduction|Conclusion|Key Points|Key Insights|Implications)$/i)) {
-      // Ensure it's under 60 characters
-      if (title.length <= 60 && title.length > 5) {
-        console.log(`[Code] Generated title from heading: ${title}`);
-        return title;
-      }
-      
-      // Truncate if too long
+      // Return full title if it's valid (length > 5)
       if (title.length > 5) {
-        title = title.slice(0, 57) + "...";
-        console.log(`[Code] Generated title (truncated): ${title}`);
+        console.log(`[Code] Generated title from heading: ${title}`);
         return title;
       }
     }
@@ -78,12 +61,13 @@ export async function generateBlogTitle(content: string, rssTitle?: string): Pro
 
   // Fallback: Generate from first sentence
   const firstSentence = content.split(/[.!?]/)[0] || content.slice(0, 100);
-  let title = firstSentence.trim().slice(0, 60);
+  let title = firstSentence.trim();
   
   if (title.length < 30) {
     title = `${title}: Technology Insights`;
   }
   
+  // Don't truncate - return full title
   console.log(`[Code] Generated title from content: ${title}`);
-  return title.slice(0, 60);
+  return title;
 }

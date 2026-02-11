@@ -44,11 +44,26 @@ export async function convertToHTML(content: string): Promise<string> {
 
     // Regular paragraphs
     if (line.length > 0) {
+      // Skip lines that are markdown headings (should have been converted already)
+      if (line.match(/^##+\s+/)) {
+        continue; // Skip markdown headings in paragraph processing
+      }
+      
+      // Decode HTML entities that might be in the text
+      let cleanLine = line
+        .replace(/&#039;/g, "'")
+        .replace(/&apos;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&nbsp;/g, " ");
+      
       // Check if line already contains HTML (from SEO optimization with links)
-      if (line.includes("<a ")) {
-        htmlBlocks.push(`<p>${line}</p>`);
+      if (cleanLine.includes("<a ")) {
+        htmlBlocks.push(`<p>${cleanLine}</p>`);
       } else {
-        htmlBlocks.push(`<p>${escapeHtml(line)}</p>`);
+        htmlBlocks.push(`<p>${escapeHtml(cleanLine)}</p>`);
       }
     }
   }

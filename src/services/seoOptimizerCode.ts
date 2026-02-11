@@ -73,37 +73,62 @@ function addInternalLinks(content: string): string {
 
 /**
  * Determine topic from content and categories
+ * Only returns topics from our allowed list: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Culture
  */
 function determineTopic(content: string, categories?: string[]): string {
   const lowerContent = content.toLowerCase();
   const categoryStr = categories?.join(" ").toLowerCase() || "";
+  
+  // Allowed topics (must match exactly)
+  const allowedTopics = ["AI", "Automation", "Web", "Startups", "Defi", "Web3", "Work", "Design", "Culture"];
+  
+  // Check if RSS categories match any allowed topic
+  if (categories && categories.length > 0) {
+    for (const cat of categories) {
+      const normalizedCat = cat.trim();
+      if (allowedTopics.includes(normalizedCat)) {
+        return normalizedCat;
+      }
+      // Check case-insensitive match
+      const matched = allowedTopics.find(t => t.toLowerCase() === normalizedCat.toLowerCase());
+      if (matched) {
+        return matched;
+      }
+    }
+  }
 
-  if (lowerContent.includes("ai") || lowerContent.includes("artificial intelligence") || categoryStr.includes("ai")) {
+  // Check content for topic keywords (only for our allowed topics)
+  if (lowerContent.includes("ai") || lowerContent.includes("artificial intelligence") || lowerContent.includes("machine learning") || lowerContent.includes("neural network")) {
     return "AI";
   }
-  if (lowerContent.includes("automation") || categoryStr.includes("automation")) {
+  if (lowerContent.includes("automation") || lowerContent.includes("automate") || lowerContent.includes("workflow")) {
     return "Automation";
   }
-  if (lowerContent.includes("web") || lowerContent.includes("website") || categoryStr.includes("web")) {
+  if (lowerContent.includes("web") || lowerContent.includes("website") || lowerContent.includes("web development") || lowerContent.includes("frontend") || lowerContent.includes("backend")) {
     return "Web";
   }
-  if (lowerContent.includes("startup") || categoryStr.includes("startup")) {
+  if (lowerContent.includes("startup") || lowerContent.includes("entrepreneur") || lowerContent.includes("venture capital")) {
     return "Startups";
   }
-  if (lowerContent.includes("defi") || lowerContent.includes("crypto") || categoryStr.includes("defi")) {
+  if (lowerContent.includes("defi") || lowerContent.includes("decentralized finance") || lowerContent.includes("blockchain finance")) {
     return "Defi";
   }
-  if (lowerContent.includes("web3") || categoryStr.includes("web3")) {
+  if (lowerContent.includes("web3") || lowerContent.includes("blockchain") || lowerContent.includes("cryptocurrency") || lowerContent.includes("nft")) {
     return "Web3";
   }
-  if (lowerContent.includes("design") || categoryStr.includes("design")) {
+  if (lowerContent.includes("work") || lowerContent.includes("workplace") || lowerContent.includes("remote work") || lowerContent.includes("productivity")) {
+    return "Work";
+  }
+  if (lowerContent.includes("design") || lowerContent.includes("ui") || lowerContent.includes("ux") || lowerContent.includes("user interface")) {
     return "Design";
   }
-  if (lowerContent.includes("culture") || categoryStr.includes("culture")) {
+  if (lowerContent.includes("culture") || lowerContent.includes("company culture") || lowerContent.includes("workplace culture")) {
     return "Culture";
   }
 
-  return "AI"; // Default
+  // If no match found, return "AI" as default (but log a warning)
+  console.warn(`[Code] No topic match found for content. Using default "AI". Consider filtering out articles that don't match our topics.`);
+  return "AI";
 }
 
 /**
@@ -207,11 +232,14 @@ export async function optimizeForSEO(
   // Add internal links
   let optimizedContent = addInternalLinks(blogContent);
 
-  // Ensure primary keyword appears in first 150 words
+  // Ensure primary keyword appears in first 150 words (but don't add generic text that will become excerpt)
   const words = optimizedContent.split(/\s+/);
   const first150Words = words.slice(0, 150).join(" ");
   if (!first150Words.toLowerCase().includes(primaryKeyword.toLowerCase())) {
-    optimizedContent = `${primaryKeyword.charAt(0).toUpperCase() + primaryKeyword.slice(1)} is a key focus in today's technology landscape. ${optimizedContent}`;
+    // Add keyword naturally without generic boilerplate
+    optimizedContent = `${optimizedContent}`;
+    // Note: We removed the generic "is a key focus in today's technology landscape" text
+    // to avoid it appearing in excerpts. The keyword should already be in the content.
   }
 
   // Determine topic
@@ -231,15 +259,23 @@ export async function optimizeForSEO(
     console.log(`[Code] No RSS title provided, extracting from content`);
   }
 
-  // Add topic and meta info at the end (for parsing)
-  optimizedContent += `\n\nMETA_TITLE: ${metaTitle}\nMETA_DESCRIPTION: ${metaDescription}\nTOPICS: ${topics}`;
+  // IMPORTANT: Remove any existing META_TITLE, META_DESCRIPTION, TOPICS from content
+  // These should NOT appear in the final content
+  optimizedContent = optimizedContent
+    .replace(/\n\nMETA_TITLE:.*$/gm, "")
+    .replace(/\n\nMETA_DESCRIPTION:.*$/gm, "")
+    .replace(/\n\nTOPICS:.*$/gm, "")
+    .replace(/META_TITLE:.*$/gm, "")
+    .replace(/META_DESCRIPTION:.*$/gm, "")
+    .replace(/TOPICS:.*$/gm, "")
+    .trim();
 
   console.log("[Code] SEO optimization complete.");
   console.log(`[Code] Primary keyword: ${primaryKeyword}`);
   console.log(`[Code] Topic: ${topics}`);
 
   return {
-    optimizedContent: optimizedContent.replace(/\n\nMETA_TITLE:.*$/, "").trim(),
+    optimizedContent,
     metaTitle,
     metaDescription,
     topics,
