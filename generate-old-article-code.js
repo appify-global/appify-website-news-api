@@ -1,0 +1,173 @@
+// Generate an old article using code-based generation
+const { PrismaClient } = require("@prisma/client");
+const { generateBlogContent } = require("./dist/services/contentGeneratorCode");
+const { optimizeForSEO } = require("./dist/services/seoOptimizerCode");
+const { convertToHTML } = require("./dist/services/htmlConverterCode");
+const { generateBlogTitle } = require("./dist/services/titleGeneratorCode");
+const { generateMetaDescription } = require("./dist/services/metaDescriptionGeneratorCode");
+const { generateImage } = require("./dist/services/imageGenerator");
+const { uploadImageToRailbucket } = require("./dist/services/railbucket");
+const { parseContentBlocks, generateSlug, generateExcerpt } = require("./dist/services/contentParser");
+const slugify = require("slugify");
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL || "postgresql://postgres:SutGuMkPQWYuWNudhUrpDWYWQgfUHYWZ@shortline.proxy.rlwy.net:53169/railway"
+    }
+  }
+});
+
+// Set code-based generation
+process.env.USE_CODE_GENERATION = "true";
+
+async function generateOldArticle() {
+  console.log("🔍 Finding an old RSS article that hasn't been generated yet...\n");
+
+  // Get a list of recent articles from a test RSS feed to find one we haven't processed
+  const Parser = require("rss-parser");
+  const parser = new Parser();
+  
+  // Try Wired or TechCrunch feed
+  const feedUrl = "https://www.wired.com/feed/rss";
+  
+  try {
+    console.log(`Fetching RSS feed: ${feedUrl}`);
+    const feed = await parser.parseURL(feedUrl);
+    console.log(`Found ${feed.items.length} items in feed\n`);
+
+    // Check each item to find one we haven't processed
+    for (const item of feed.items.slice(0, 10)) { // Check first 10 items
+      if (!item.link) continue;
+
+      const exists = await prisma.article.findUnique({
+        where: { sourceUrl: item.link },
+        select: { id: true, title: true },
+      });
+
+      if (!exists) {
+        console.log(`✅ Found unprocessed article: ${item.title}`);
+        console.log(`   Link: ${item.link}\n`);
+
+        // Extract image
+        let imageUrl = item.enclosure?.url || "";
+        if (item.content) {
+          const imgMatch = item.content.match(/<img[^>]+src="([^"]+)"[^>]*>/i);
+          if (imgMatch && imgMatch[1]) {
+            imageUrl = imgMatch[1];
+          }
+        }
+
+        const rssItem = {
+          title: item.title || "Untitled",
+          link: item.link,
+          contentSnippet: item.contentSnippet,
+          content: item.content,
+          pubDate: item.pubDate,
+          categories: item.categories,
+          imageUrl,
+        };
+
+        console.log("🚀 Generating article using CODE-BASED generation...\n");
+
+        // Step 1: Generate blog content
+        console.log("Step 1: Generating blog content...");
+        const rawBlog = await generateBlogContent(rssItem);
+        console.log(`✅ Generated ${rawBlog.split(/\s+/).length} words\n`);
+
+        // Step 2: SEO optimization
+        console.log("Step 2: SEO optimization...");
+        const seoResult = await optimizeForSEO(rawBlog, rssItem.categories, rssItem.title);
+        console.log(`✅ SEO optimized. Topic: ${seoResult.topics}\n`);
+
+        // Step 3: Convert to HTML
+        console.log("Step 3: Converting to HTML...");
+        const htmlContent = await convertToHTML(seoResult.optimizedContent);
+        console.log(`✅ HTML generated\n`);
+
+        // Step 4: Generate title
+        console.log("Step 4: Generating title...");
+        const blogTitle = await generateBlogTitle(htmlContent, rssItem.title);
+        console.log(`✅ Title: ${blogTitle}\n`);
+
+        // Step 5: Generate meta description
+        console.log("Step 5: Generating meta description...");
+        const metaDescription = await generateMetaDescription(htmlContent);
+        console.log(`✅ Meta Description generated\n`);
+
+        // Step 6: Parse content blocks
+        const contentBlocks = parseContentBlocks(htmlContent);
+        const slug = generateSlug(blogTitle);
+        let excerpt = generateExcerpt(contentBlocks, metaDescription) || metaDescription.slice(0, 250);
+        if (excerpt.length > 500) {
+          excerpt = excerpt.slice(0, 497) + "...";
+        }
+
+        // Step 7: Handle image - use RSS image first, upload to Railbucket
+        if (imageUrl) {
+          console.log("Step 6: Uploading RSS image to Railbucket...");
+          try {
+            const filename = `${slugify(blogTitle, { lower: true, strict: true })}-rss-${Date.now()}.png`;
+            imageUrl = await uploadImageToRailbucket(imageUrl, filename);
+            console.log("✅ RSS image uploaded to Railbucket\n");
+          } catch (uploadError) {
+            console.error("⚠️  Failed to upload RSS image, using original URL:", uploadError.message);
+            // Keep original URL if upload fails
+          }
+        } else {
+          // No RSS image - use placeholder (code-based mode doesn't generate images)
+          console.log("Step 6: No RSS image found, using placeholder...");
+          imageUrl = "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80";
+          console.log("✅ Using placeholder image\n");
+        }
+
+        // Step 8: Save to database
+        console.log("Step 7: Saving to database...");
+        const contentJson = contentBlocks.map((block) => ({
+          type: block.type,
+          text: block.text || null,
+          src: block.src || null,
+          alt: block.alt || null,
+        }));
+
+        const article = await prisma.article.create({
+          data: {
+            slug,
+            title: blogTitle,
+            excerpt,
+            topics: seoResult.topics,
+            author: "Appify",
+            imageUrl,
+            date: rssItem.pubDate ? new Date(rssItem.pubDate) : new Date(),
+            isFeatured: false,
+            metaTitle: seoResult.metaTitle.slice(0, 60),
+            metaDescription: seoResult.metaDescription.slice(0, 160),
+            sourceUrl: rssItem.link,
+            status: "published",
+            content: contentJson,
+          },
+        });
+
+        console.log(`\n✅ Article created successfully!`);
+        console.log(`   Slug: ${article.slug}`);
+        console.log(`   Title: ${article.title}`);
+        console.log(`   Topic: ${article.topics}`);
+        console.log(`   Status: ${article.status}`);
+
+        await prisma.$disconnect();
+        return;
+      }
+    }
+
+    console.log("❌ No unprocessed articles found in the first 10 items.");
+    console.log("   Try a different RSS feed or check if all recent articles are already processed.");
+
+  } catch (error) {
+    console.error("❌ Error:", error.message);
+    console.error(error.stack);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+generateOldArticle();
