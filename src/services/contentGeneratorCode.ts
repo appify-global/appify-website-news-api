@@ -85,6 +85,137 @@ async function fetchArticleContent(url: string): Promise<{ content: string; imag
 }
 
 /**
+ * Analyze content to generate dynamic, contextual headings based on the actual article topic
+ */
+function analyzeContentForHeadings(content: string, title: string): {
+  mainSectionHeading: string;
+  mainSectionContent: string[];
+  secondSectionHeading: string | null;
+  secondSectionContent: string[];
+  includeAppDevSection: boolean;
+  appDevHeading: string;
+  appDevContent: string[];
+  conclusionContent: string[];
+} {
+  const lowerContent = (content + " " + title).toLowerCase();
+  const lowerTitle = title.toLowerCase();
+  
+  // Determine main topic and generate contextual headings
+  let mainSectionHeading = "Key Insights";
+  let secondSectionHeading: string | null = "Technical Analysis";
+  let includeAppDevSection = true;
+  let appDevHeading = "Implications for App Development";
+  
+  // CEO/Workplace/Company articles
+  if (lowerContent.includes("ceo") || lowerContent.includes("employee") || lowerContent.includes("workplace") || 
+      lowerContent.includes("company") || lowerContent.includes("workers") || lowerContent.includes("staff")) {
+    mainSectionHeading = "Workplace Impact";
+    secondSectionHeading = "Industry Response";
+    appDevHeading = "Lessons for Tech Companies";
+    includeAppDevSection = true;
+  }
+  // AI/Machine Learning articles
+  else if (lowerContent.includes("ai") || lowerContent.includes("artificial intelligence") || 
+           lowerContent.includes("machine learning") || lowerContent.includes("neural network")) {
+    mainSectionHeading = "AI Innovation";
+    secondSectionHeading = "Technical Deep Dive";
+    appDevHeading = "AI in App Development";
+    includeAppDevSection = true;
+  }
+  // Automation articles
+  else if (lowerContent.includes("automation") || lowerContent.includes("automate") || 
+           lowerContent.includes("workflow") || lowerContent.includes("process")) {
+    mainSectionHeading = "Automation Advances";
+    secondSectionHeading = "Implementation Strategies";
+    appDevHeading = "Automation in Mobile Apps";
+    includeAppDevSection = true;
+  }
+  // Startup/Venture articles
+  else if (lowerContent.includes("startup") || lowerContent.includes("venture") || 
+           lowerContent.includes("funding") || lowerContent.includes("investment")) {
+    mainSectionHeading = "Startup Landscape";
+    secondSectionHeading = "Market Dynamics";
+    appDevHeading = "Opportunities for App Developers";
+    includeAppDevSection = true;
+  }
+  // Web/Development articles
+  else if (lowerContent.includes("web") || lowerContent.includes("development") || 
+           lowerContent.includes("coding") || lowerContent.includes("programming")) {
+    mainSectionHeading = "Development Trends";
+    secondSectionHeading = "Technical Insights";
+    appDevHeading = "Modern App Development";
+    includeAppDevSection = true;
+  }
+  // Design/UX articles
+  else if (lowerContent.includes("design") || lowerContent.includes("ui") || 
+           lowerContent.includes("ux") || lowerContent.includes("user experience")) {
+    mainSectionHeading = "Design Innovation";
+    secondSectionHeading = "User Experience Impact";
+    appDevHeading = "Design in App Development";
+    includeAppDevSection = true;
+  }
+  // Blockchain/Web3 articles
+  else if (lowerContent.includes("blockchain") || lowerContent.includes("web3") || 
+           lowerContent.includes("crypto") || lowerContent.includes("defi")) {
+    mainSectionHeading = "Blockchain Evolution";
+    secondSectionHeading = "Decentralized Technology";
+    appDevHeading = "Web3 in App Development";
+    includeAppDevSection = true;
+  }
+  // Security/Privacy articles
+  else if (lowerContent.includes("security") || lowerContent.includes("privacy") || 
+           lowerContent.includes("data protection") || lowerContent.includes("cybersecurity")) {
+    mainSectionHeading = "Security Considerations";
+    secondSectionHeading = "Privacy Implications";
+    appDevHeading = "Security in App Development";
+    includeAppDevSection = true;
+  }
+  // Software/Tool articles
+  else if (lowerContent.includes("software") || lowerContent.includes("tool") || 
+           lowerContent.includes("platform") || lowerContent.includes("framework")) {
+    mainSectionHeading = "Technology Overview";
+    secondSectionHeading = "Key Features";
+    appDevHeading = "Applications in Development";
+    includeAppDevSection = true;
+  }
+  
+  // Generate contextual content based on headings
+  const mainSectionContent = [
+    "This development represents a significant advancement in the technology sector, with far-reaching implications for businesses and consumers alike.",
+    "The integration of new technologies and methodologies is reshaping how organizations operate and compete in the digital marketplace.",
+    "Understanding these changes is crucial for staying ahead in an increasingly competitive technological environment."
+  ];
+  
+  const secondSectionContent = [
+    "From a technical perspective, this development highlights the importance of staying current with emerging technologies and industry best practices.",
+    "Organizations that adapt quickly to these changes are better positioned to leverage new opportunities and maintain their competitive edge."
+  ];
+  
+  const appDevContent = [
+    "This development highlights the importance of staying current with technological advances in the app development space.",
+    "For businesses looking to build or enhance their mobile applications, understanding these trends is crucial for maintaining competitive advantage.",
+    "The evolving technology landscape presents both challenges and opportunities for app developers and businesses seeking to innovate."
+  ];
+  
+  const conclusionContent = [
+    "This news underscores the evolving landscape of technology and its impact on app development practices.",
+    "Staying informed about these changes helps businesses make better decisions about their technology investments.",
+    "As the industry continues to evolve, organizations that embrace innovation and adapt to new technologies will be best positioned for long-term success."
+  ];
+  
+  return {
+    mainSectionHeading,
+    mainSectionContent,
+    secondSectionHeading,
+    secondSectionContent,
+    includeAppDevSection,
+    appDevHeading,
+    appDevContent,
+    conclusionContent
+  };
+}
+
+/**
  * Generate blog content from RSS item using code-based approach.
  * Extracts content from the source article and structures it.
  */
@@ -129,6 +260,9 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Use RSS title for the main heading, or create a descriptive one
     const mainHeading = item.title || "Latest Technology Developments";
     
+    // Analyze content to generate dynamic headings based on actual article topic
+    const contentAnalysis = analyzeContentForHeadings(sourceContent, item.title);
+    
     // Build comprehensive content sections
     const blogSections: string[] = [
       `## ${mainHeading}`,
@@ -148,35 +282,37 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
       }
     }
     
-    blogSections.push("", "## Key Insights");
+    // Dynamic heading based on content analysis
+    blogSections.push("", `## ${contentAnalysis.mainSectionHeading}`);
     
-    // Key Insights with multiple paragraphs
+    // Main section with multiple paragraphs
     if (bodyParagraphs.length > 0) {
       blogSections.push(...bodyParagraphs);
     } else {
-      blogSections.push("This development represents a significant advancement in the technology sector, with far-reaching implications for businesses and consumers alike.");
-      blogSections.push("The integration of new technologies and methodologies is reshaping how organizations operate and compete in the digital marketplace.");
-      blogSections.push("Understanding these changes is crucial for staying ahead in an increasingly competitive technological environment.");
+      blogSections.push(contentAnalysis.mainSectionContent[0]);
+      blogSections.push(contentAnalysis.mainSectionContent[1]);
+      blogSections.push(contentAnalysis.mainSectionContent[2]);
     }
     
-    blogSections.push("", "## Technical Analysis");
-    
-    // Technical Analysis section
-    if (additionalParagraphs.length > 0) {
-      blogSections.push(...additionalParagraphs);
-    } else {
-      blogSections.push("From a technical perspective, this development highlights the importance of staying current with emerging technologies and industry best practices.");
-      blogSections.push("Organizations that adapt quickly to these changes are better positioned to leverage new opportunities and maintain their competitive edge.");
-      blogSections.push("The technical implementation of these innovations requires careful planning and strategic execution to maximize their potential impact.");
+    // Second dynamic section
+    if (contentAnalysis.secondSectionHeading) {
+      blogSections.push("", `## ${contentAnalysis.secondSectionHeading}`);
+      
+      if (additionalParagraphs.length > 0) {
+        blogSections.push(...additionalParagraphs);
+      } else {
+        blogSections.push(contentAnalysis.secondSectionContent[0]);
+        blogSections.push(contentAnalysis.secondSectionContent[1]);
+      }
     }
     
-    blogSections.push("", "## Implications for App Development");
-    
-    // App Development implications
-    blogSections.push("This development highlights the importance of staying current with technological advances in the app development space.");
-    blogSections.push("For businesses looking to build or enhance their mobile applications, understanding these trends is crucial for maintaining competitive advantage.");
-    blogSections.push("The evolving technology landscape presents both challenges and opportunities for app developers and businesses seeking to innovate.");
-    blogSections.push("Implementing these new technologies effectively can lead to improved user experiences, increased efficiency, and better business outcomes.");
+    // App Development implications (only if relevant)
+    if (contentAnalysis.includeAppDevSection) {
+      blogSections.push("", `## ${contentAnalysis.appDevHeading}`);
+      blogSections.push(contentAnalysis.appDevContent[0]);
+      blogSections.push(contentAnalysis.appDevContent[1]);
+      blogSections.push(contentAnalysis.appDevContent[2]);
+    }
     
     blogSections.push("", "## Conclusion");
     
@@ -184,9 +320,9 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     if (conclusionParagraphs.length > 0) {
       blogSections.push(...conclusionParagraphs);
     } else {
-      blogSections.push("This news underscores the evolving landscape of technology and its impact on app development practices.");
-      blogSections.push("Staying informed about these changes helps businesses make better decisions about their technology investments.");
-      blogSections.push("As the industry continues to evolve, organizations that embrace innovation and adapt to new technologies will be best positioned for long-term success.");
+      blogSections.push(contentAnalysis.conclusionContent[0]);
+      blogSections.push(contentAnalysis.conclusionContent[1]);
+      blogSections.push(contentAnalysis.conclusionContent[2]);
     }
 
     const blogContent = blogSections.join("\n\n");
@@ -200,6 +336,9 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Fallback: Use RSS content snippet with comprehensive structure
     const fallbackContent = item.contentSnippet || item.content || item.title;
     const mainHeading = item.title || "Latest Technology Developments";
+    
+    // Analyze content for dynamic headings
+    const contentAnalysis = analyzeContentForHeadings(fallbackContent, item.title);
     
     // Extract paragraphs from RSS content if available
     const rssParagraphs = (item.contentSnippet || item.content || "")
@@ -215,34 +354,31 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     
     if (rssParagraphs.length > 0) {
       blogSections.push(...rssParagraphs.slice(0, 3));
-      blogSections.push("", "## Key Insights");
+      blogSections.push("", `## ${contentAnalysis.mainSectionHeading}`);
       blogSections.push(...rssParagraphs.slice(3, 6));
-      blogSections.push("", "## Technical Analysis");
-      blogSections.push(...rssParagraphs.slice(6, 9));
+      if (contentAnalysis.secondSectionHeading) {
+        blogSections.push("", `## ${contentAnalysis.secondSectionHeading}`);
+        blogSections.push(...rssParagraphs.slice(6, 9));
+      }
     } else {
       blogSections.push(fallbackContent);
       blogSections.push("This development has significant implications for the technology industry and how businesses approach digital transformation.");
       blogSections.push("The integration of new technologies and methodologies is reshaping how organizations operate and compete in the digital marketplace.");
-      blogSections.push("", "## Key Insights");
-      blogSections.push("This development represents a significant advancement in the technology sector, with far-reaching implications for businesses and consumers alike.");
-      blogSections.push("The evolving technology landscape presents both challenges and opportunities for organizations seeking to innovate and stay competitive.");
-      blogSections.push("Understanding these changes is crucial for staying ahead in an increasingly competitive technological environment.");
-      blogSections.push("", "## Technical Analysis");
-      blogSections.push("From a technical perspective, this development highlights the importance of staying current with emerging technologies and industry best practices.");
-      blogSections.push("Organizations that adapt quickly to these changes are better positioned to leverage new opportunities and maintain their competitive edge.");
-      blogSections.push("The technical implementation of these innovations requires careful planning and strategic execution to maximize their potential impact.");
+      blogSections.push("", `## ${contentAnalysis.mainSectionHeading}`);
+      blogSections.push(...contentAnalysis.mainSectionContent);
+      if (contentAnalysis.secondSectionHeading) {
+        blogSections.push("", `## ${contentAnalysis.secondSectionHeading}`);
+        blogSections.push(...contentAnalysis.secondSectionContent);
+      }
     }
     
-    blogSections.push("", "## Implications for App Development");
-    blogSections.push("This development highlights the importance of staying current with technological advances in the app development space.");
-    blogSections.push("For businesses looking to build or enhance their mobile applications, understanding these trends is crucial for maintaining competitive advantage.");
-    blogSections.push("The evolving technology landscape presents both challenges and opportunities for app developers and businesses seeking to innovate.");
-    blogSections.push("Implementing these new technologies effectively can lead to improved user experiences, increased efficiency, and better business outcomes.");
+    if (contentAnalysis.includeAppDevSection) {
+      blogSections.push("", `## ${contentAnalysis.appDevHeading}`);
+      blogSections.push(...contentAnalysis.appDevContent);
+    }
     
     blogSections.push("", "## Conclusion");
-    blogSections.push("This news underscores the evolving landscape of technology and its impact on app development practices.");
-    blogSections.push("Staying informed about these changes helps businesses make better decisions about their technology investments.");
-    blogSections.push("As the industry continues to evolve, organizations that embrace innovation and adapt to new technologies will be best positioned for long-term success.");
+    blogSections.push(...contentAnalysis.conclusionContent);
     
     return blogSections.join("\n\n");
   }
