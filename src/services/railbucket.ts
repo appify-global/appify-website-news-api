@@ -67,12 +67,12 @@ export async function uploadImageToRailbucket(
   try {
     await s3Client.send(putCommand);
     
-    // Generate signed URL (valid for 10 years - long enough for a blog)
+    // Generate signed URL (valid for 1 week - maximum allowed by S3)
     const getCommand = new GetObjectCommand({
       Bucket: bucketName,
       Key: filename,
     });
-    const signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 315360000 }); // 10 years
+    const signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 604800 }); // 1 week (max allowed)
     
     console.log(`[Railbucket] Image uploaded successfully (signed URL): ${signedUrl}`);
     return signedUrl;
@@ -99,7 +99,8 @@ export async function getSignedImageUrl(filename: string): Promise<string> {
   });
   
   // Generate signed URL valid for 10 years
-  const signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 315360000 });
+  // Generate signed URL (valid for 1 week - maximum allowed by S3)
+  const signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 604800 }); // 1 week
   return signedUrl;
 }
 
