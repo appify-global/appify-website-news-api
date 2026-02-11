@@ -11,7 +11,8 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "tsx src/seed.ts",
-    "generate": "tsx src/cron/generateArticles.ts"
+    "generate": "tsx src/cron/generateArticles.ts",
+    "migrate:images": "tsx src/scripts/migrateImagesToRailbucket.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.987.0",

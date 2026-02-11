@@ -5,6 +5,7 @@ import { generateBlogContent } from "../services/contentGenerator";
 import { optimizeForSEO } from "../services/seoOptimizer";
 import { convertToHTML } from "../services/htmlConverter";
 import { parseContentBlocks } from "../services/contentParser";
+import { migrateImagesToRailbucket } from "../scripts/migrateImagesToRailbucket";
 import { prisma } from "../lib/prisma";
 
 export const adminRouter = Router();
@@ -140,6 +141,27 @@ adminRouter.post("/regenerate-content", async (_req, res) => {
     });
   } catch (error: any) {
     console.error("[ADMIN] Regeneration error:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// POST /api/admin/migrate-images - Migrate all existing article images to Railbucket
+adminRouter.post("/migrate-images", async (_req, res) => {
+  try {
+    console.log("[ADMIN] Image migration to Railbucket triggered");
+    
+    // Run migration (this will log progress)
+    await migrateImagesToRailbucket();
+    
+    res.json({ 
+      success: true, 
+      message: "Image migration completed. Check logs for details." 
+    });
+  } catch (error: any) {
+    console.error("[ADMIN] Image migration error:", error);
     res.status(500).json({ 
       success: false, 
       error: error.message 
