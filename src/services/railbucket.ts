@@ -39,7 +39,7 @@ function getS3Client(): S3Client {
 /**
  * Upload an image to Railway Railbucket.
  * Downloads the image from a URL and uploads it to Railbucket using S3-compatible API.
- * Returns a signed URL if the bucket is not public, otherwise returns a public URL.
+ * Returns a signed URL since Railway Railbucket buckets are not publicly accessible.
  */
 export async function uploadImageToRailbucket(
   imageUrl: string,
@@ -67,34 +67,56 @@ export async function uploadImageToRailbucket(
   try {
     await s3Client.send(putCommand);
     
-    // Try to construct public URL first
-    const endpoint = process.env.RAILBUCKET_ENDPOINT || "https://t3.storageapi.dev";
-    const publicUrl = `${endpoint}/${bucketName}/${filename}`;
-    
-    // Test if public URL works, if not, generate signed URL
-    try {
-      const testResponse = await fetch(publicUrl, { method: "HEAD" });
-      if (testResponse.ok) {
-        console.log(`[Railbucket] Image uploaded successfully (public): ${publicUrl}`);
-        return publicUrl;
-      }
-    } catch (testError) {
-      // Public URL doesn't work, generate signed URL
-      console.log(`[Railbucket] Public URL not accessible, generating signed URL...`);
-    }
-    
-    // Generate signed URL (valid for 1 year)
+    // Generate signed URL (valid for 10 years - long enough for a blog)
     const getCommand = new GetObjectCommand({
       Bucket: bucketName,
       Key: filename,
     });
-    const signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 31536000 }); // 1 year
+    const signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 315360000 }); // 10 years
     
     console.log(`[Railbucket] Image uploaded successfully (signed URL): ${signedUrl}`);
     return signedUrl;
   } catch (error: any) {
     console.error("[Railbucket] Upload failed:", error);
     throw new Error(`Railbucket upload failed: ${error.message}`);
+  }
+}
+
+/**
+ * Generate a signed URL for an existing image in Railbucket.
+ * Useful for regenerating signed URLs for existing images.
+ */
+export async function getSignedImageUrl(filename: string): Promise<string> {
+  const bucketName = process.env.RAILBUCKET_BUCKET_NAME;
+  if (!bucketName) {
+    throw new Error("RAILBUCKET_BUCKET_NAME environment variable is not set");
+  }
+
+  const s3Client = getS3Client();
+  const getCommand = new GetObjectCommand({
+    Bucket: bucketName,
+    Key: filename,
+  });
+  
+  // Generate signed URL valid for 10 years
+  const signedUrl = await getSignedUrl(s3Client, getCommand, { expiresIn: 315360000 });
+  return signedUrl;
+}
+
+/**
+ * Extract filename from a Railbucket URL (public or signed)
+ */
+export function extractFilenameFromUrl(url: string): string | null {
+  try {
+    // Handle signed URLs (they contain query parameters)
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split("/");
+    if (pathParts.length >= 2) {
+      return pathParts[pathParts.length - 1];
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 

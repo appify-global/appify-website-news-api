@@ -6,6 +6,7 @@ import { optimizeForSEO } from "../services/seoOptimizer";
 import { convertToHTML } from "../services/htmlConverter";
 import { parseContentBlocks } from "../services/contentParser";
 import { migrateImagesToRailbucket } from "../scripts/migrateImagesToRailbucket";
+import { getSignedImageUrl, extractFilenameFromUrl } from "../services/railbucket";
 import { prisma } from "../lib/prisma";
 
 export const adminRouter = Router();
@@ -162,6 +163,75 @@ adminRouter.post("/migrate-images", async (_req, res) => {
     });
   } catch (error: any) {
     console.error("[ADMIN] Image migration error:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// POST /api/admin/regenerate-signed-urls - Regenerate signed URLs for all Railbucket images
+adminRouter.post("/regenerate-signed-urls", async (_req, res) => {
+  try {
+    console.log("[ADMIN] Regenerating signed URLs for Railbucket images...");
+    
+    // Get all articles with Railbucket images (containing t3.storageapi.dev)
+    const articles = await prisma.article.findMany({
+      where: {
+        imageUrl: {
+          contains: "t3.storageapi.dev",
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+        imageUrl: true,
+      },
+    });
+
+    if (articles.length === 0) {
+      return res.json({ 
+        success: true, 
+        message: "No Railbucket images found to regenerate." 
+      });
+    }
+
+    let regenerated = 0;
+    let failed = 0;
+
+    for (const article of articles) {
+      try {
+        // Extract filename from URL
+        const filename = extractFilenameFromUrl(article.imageUrl || "");
+        if (!filename) {
+          console.warn(`[ADMIN] Could not extract filename from: ${article.imageUrl}`);
+          failed++;
+          continue;
+        }
+
+        // Generate new signed URL
+        const signedUrl = await getSignedImageUrl(filename);
+
+        // Update article with new signed URL
+        await prisma.article.update({
+          where: { id: article.id },
+          data: { imageUrl: signedUrl },
+        });
+
+        regenerated++;
+        console.log(`[ADMIN] Regenerated signed URL for: ${article.title.substring(0, 50)}...`);
+      } catch (error: any) {
+        failed++;
+        console.error(`[ADMIN] Failed to regenerate signed URL for "${article.title}":`, error.message);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Regenerated signed URLs for ${regenerated} images, ${failed} failed. Check logs for details.` 
+    });
+  } catch (error: any) {
+    console.error("[ADMIN] Signed URL regeneration error:", error);
     res.status(500).json({ 
       success: false, 
       error: error.message 
