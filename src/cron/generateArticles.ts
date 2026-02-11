@@ -1,18 +1,36 @@
 import { fetchNewRSSItems } from "../services/rss";
-import { generateBlogContent } from "../services/contentGenerator";
-import { optimizeForSEO } from "../services/seoOptimizer";
-import { convertToHTML } from "../services/htmlConverter";
-import { generateBlogTitle } from "../services/titleGenerator";
-import { generateMetaDescription } from "../services/metaDescriptionGenerator";
+import { generateBlogContent as generateBlogContentOpenAI } from "../services/contentGenerator";
+import { optimizeForSEO as optimizeForSEOOpenAI } from "../services/seoOptimizer";
+import { convertToHTML as convertToHTMLOpenAI } from "../services/htmlConverter";
+import { generateBlogTitle as generateBlogTitleOpenAI } from "../services/titleGenerator";
+import { generateMetaDescription as generateMetaDescriptionOpenAI } from "../services/metaDescriptionGenerator";
+// Code-based alternatives
+import { generateBlogContent as generateBlogContentCode } from "../services/contentGeneratorCode";
+import { optimizeForSEO as optimizeForSEOCode } from "../services/seoOptimizerCode";
+import { convertToHTML as convertToHTMLCode } from "../services/htmlConverterCode";
+import { generateBlogTitle as generateBlogTitleCode } from "../services/titleGeneratorCode";
+import { generateMetaDescription as generateMetaDescriptionCode } from "../services/metaDescriptionGeneratorCode";
 import { generateImage } from "../services/imageGenerator";
 import { uploadImageToRailbucket } from "../services/railbucket";
 import { parseContentBlocks, generateSlug, generateExcerpt } from "../services/contentParser";
 import { prisma } from "../lib/prisma";
 import slugify from "slugify";
 
+// Use code-based generation if USE_CODE_GENERATION=true, otherwise use OpenAI
+const USE_CODE_GENERATION = process.env.USE_CODE_GENERATION === "true";
+
+// Select functions based on environment variable
+const generateBlogContent = USE_CODE_GENERATION ? generateBlogContentCode : generateBlogContentOpenAI;
+const optimizeForSEO = USE_CODE_GENERATION ? optimizeForSEOCode : optimizeForSEOOpenAI;
+const convertToHTML = USE_CODE_GENERATION ? convertToHTMLCode : convertToHTMLOpenAI;
+const generateBlogTitle = USE_CODE_GENERATION ? generateBlogTitleCode : generateBlogTitleOpenAI;
+const generateMetaDescription = USE_CODE_GENERATION ? generateMetaDescriptionCode : generateMetaDescriptionOpenAI;
+
 /**
- * Full pipeline: RSS → OpenAI (Blog) → OpenAI (SEO) → OpenAI (HTML) → OpenAI (Title) → OpenAI (Meta) → Grok (Image) → Parse → Save
+ * Full pipeline: RSS → (OpenAI or Code) → (OpenAI or Code) → (OpenAI or Code) → (OpenAI or Code) → (OpenAI or Code) → Grok (Image) → Parse → Save
  * This replaces the entire Make.com automation flow.
+ * 
+ * Set USE_CODE_GENERATION=true to use code-based generation instead of OpenAI.
  */
 export async function generateArticles(): Promise<void> {
   const maxArticles = parseInt(process.env.MAX_ARTICLES_PER_RUN || "3");
@@ -27,25 +45,30 @@ export async function generateArticles(): Promise<void> {
 
   // Process up to maxArticles per run to control API costs
   const itemsToProcess = newItems.slice(0, maxArticles);
-  console.log(`[Pipeline] Processing ${itemsToProcess.length} articles...`);
+  const generationType = USE_CODE_GENERATION ? "CODE-BASED" : "OpenAI";
+  console.log(`[Pipeline] Processing ${itemsToProcess.length} articles using ${generationType}...`);
 
   for (const item of itemsToProcess) {
     try {
       console.log(`\n[Pipeline] --- Processing: ${item.title} ---`);
 
-      // Step 2: Generate blog content with OpenAI
+      // Step 2: Generate blog content (OpenAI or Code)
       const rawBlog = await generateBlogContent(item);
 
-      // Step 3: SEO optimize with OpenAI
-      const seoResult = await optimizeForSEO(rawBlog);
+      // Step 3: SEO optimize (OpenAI or Code)
+      const seoResult = USE_CODE_GENERATION 
+        ? await optimizeForSEO(rawBlog, item.categories)
+        : await optimizeForSEO(rawBlog);
 
-      // Step 4: Convert to clean HTML with OpenAI
+      // Step 4: Convert to clean HTML (OpenAI or Code)
       const htmlContent = await convertToHTML(seoResult.optimizedContent);
 
-      // Step 5: Generate title with OpenAI
-      const blogTitle = await generateBlogTitle(htmlContent);
+      // Step 5: Generate title (OpenAI or Code)
+      const blogTitle = USE_CODE_GENERATION
+        ? await generateBlogTitle(htmlContent, item.title)
+        : await generateBlogTitle(htmlContent);
 
-      // Step 6: Generate meta description with OpenAI
+      // Step 6: Generate meta description (OpenAI or Code)
       const metaDescription = await generateMetaDescription(htmlContent);
 
       // Step 7: Parse HTML into content blocks
