@@ -46,6 +46,33 @@ async function generateOldArticle() {
       });
 
       if (!exists) {
+        // Pre-filter: Check if article matches our allowed topics
+        // Skip articles that clearly don't match (e.g., sports, politics, etc.)
+        const itemContent = (item.contentSnippet || item.content || item.title || "").toLowerCase();
+        const hasRelevantTopic = 
+          itemContent.includes("ai") || itemContent.includes("artificial intelligence") ||
+          itemContent.includes("automation") || itemContent.includes("web") ||
+          itemContent.includes("startup") || itemContent.includes("defi") ||
+          itemContent.includes("web3") || itemContent.includes("blockchain") ||
+          itemContent.includes("design") || itemContent.includes("culture") ||
+          itemContent.includes("work") || itemContent.includes("technology") ||
+          itemContent.includes("app") || itemContent.includes("software") ||
+          itemContent.includes("tech") || itemContent.includes("digital");
+        
+        // Check RSS categories if available
+        const rssCategories = item.categories || [];
+        const hasRelevantCategory = rssCategories.some((cat) => {
+          const catLower = (cat || "").toLowerCase();
+          return catLower.includes("tech") || catLower.includes("ai") || 
+                 catLower.includes("automation") || catLower.includes("web") ||
+                 catLower.includes("startup") || catLower.includes("design");
+        });
+        
+        if (!hasRelevantTopic && !hasRelevantCategory && rssCategories.length > 0) {
+          console.log(`⚠️  Skipping article - doesn't match our topics: ${item.title}`);
+          continue; // Skip this article
+        }
+        
         console.log(`✅ Found unprocessed article: ${item.title}`);
         console.log(`   Link: ${item.link}\n`);
 
