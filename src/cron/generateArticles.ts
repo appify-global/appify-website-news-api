@@ -57,7 +57,7 @@ export async function generateArticles(): Promise<void> {
 
       // Step 3: SEO optimize (OpenAI or Code)
       const seoResult = USE_CODE_GENERATION 
-        ? await optimizeForSEO(rawBlog, item.categories)
+        ? await optimizeForSEO(rawBlog, item.categories, item.title)
         : await optimizeForSEO(rawBlog);
 
       // Step 4: Convert to clean HTML (OpenAI or Code)

@@ -109,22 +109,59 @@ function determineTopic(content: string, categories?: string[]): string {
 /**
  * Generate meta title from content
  */
-function generateMetaTitle(content: string, primaryKeyword?: string): string {
-  // Extract first heading or use first sentence
-  const headingMatch = content.match(/##\s+(.+)/);
+function generateMetaTitle(content: string, primaryKeyword?: string, rssTitle?: string): string {
+  // ALWAYS prefer RSS title if available (best source - most accurate)
+  if (rssTitle && rssTitle.trim().length > 0) {
+    let title = rssTitle.trim();
+    
+    // Remove markdown formatting if present
+    title = title.replace(/^#+\s*/, "").replace(/\*\*/g, "").replace(/<[^>]+>/g, "").trim();
+    
+    // Only add keyword if title is short enough and keyword fits naturally
+    if (primaryKeyword && !title.toLowerCase().includes(primaryKeyword.toLowerCase())) {
+      const withKeyword = `${title}: ${primaryKeyword}`;
+      if (withKeyword.length <= 60) {
+        title = withKeyword;
+      }
+    }
+    
+    // Ensure it's under 60 characters
+    if (title.length > 60) {
+      title = title.slice(0, 57) + "...";
+    }
+    
+    return title;
+  }
+
+  // Extract first heading from markdown (but skip generic ones)
+  const headingMatch = content.match(/##\s+(.+?)(?:\n|$)/);
   if (headingMatch) {
     let title = headingMatch[1].trim();
-    if (primaryKeyword && !title.toLowerCase().includes(primaryKeyword.toLowerCase())) {
-      title = `${title}: ${primaryKeyword}`;
+    
+    // Remove markdown formatting
+    title = title.replace(/\*\*/g, "").replace(/#/g, "").trim();
+    
+    // Skip generic headings like "Introduction", "Conclusion"
+    if (!title.match(/^(Introduction|Conclusion|Key Points|Key Insights|Implications)$/i) && title.length > 5) {
+      if (primaryKeyword && !title.toLowerCase().includes(primaryKeyword.toLowerCase())) {
+        const withKeyword = `${title}: ${primaryKeyword}`;
+        if (withKeyword.length <= 60) {
+          title = withKeyword;
+        }
+      }
+      return title.slice(0, 60);
     }
-    return title.slice(0, 60);
   }
 
   // Fallback: use first sentence with keyword
-  const firstSentence = content.split(/[.!?]/)[0] || content.slice(0, 100);
-  const title = primaryKeyword
-    ? `${firstSentence.slice(0, 40)}: ${primaryKeyword}`
-    : firstSentence.slice(0, 60);
+  // Remove markdown/HTML first
+  const cleanContent = content.replace(/^#+\s*/, "").replace(/\*\*/g, "").replace(/<[^>]+>/g, " ").trim();
+  const firstSentence = cleanContent.split(/[.!?]/)[0] || cleanContent.slice(0, 100);
+  let title = firstSentence.trim().slice(0, 50);
+  
+  if (primaryKeyword && !title.toLowerCase().includes(primaryKeyword.toLowerCase())) {
+    title = `${title}: ${primaryKeyword}`;
+  }
 
   return title.slice(0, 60);
 }
@@ -158,7 +195,8 @@ function generateMetaDescription(content: string, primaryKeyword?: string): stri
  */
 export async function optimizeForSEO(
   blogContent: string,
-  categories?: string[]
+  categories?: string[],
+  rssTitle?: string
 ): Promise<SEOResult> {
   console.log("[Code] Optimizing content for SEO...");
 
@@ -180,8 +218,18 @@ export async function optimizeForSEO(
   const topics = determineTopic(blogContent, categories);
 
   // Generate meta title and description
-  const metaTitle = generateMetaTitle(blogContent, primaryKeyword);
-  const metaDescription = generateMetaDescription(blogContent, primaryKeyword);
+  // For meta title, prioritize RSS title - it's the most accurate
+  // Clean content first to remove markdown headings that might interfere
+  const cleanContent = blogContent.replace(/^##\s+[^\n]+\n\n/gm, "").trim(); // Remove markdown headings
+  const metaTitle = generateMetaTitle(cleanContent, primaryKeyword, rssTitle);
+  const metaDescription = generateMetaDescription(cleanContent, primaryKeyword);
+  
+  // Debug: Log what we're using for meta title
+  if (rssTitle) {
+    console.log(`[Code] Using RSS title for meta: ${rssTitle.substring(0, 60)}`);
+  } else {
+    console.log(`[Code] No RSS title provided, extracting from content`);
+  }
 
   // Add topic and meta info at the end (for parsing)
   optimizedContent += `\n\nMETA_TITLE: ${metaTitle}\nMETA_DESCRIPTION: ${metaDescription}\nTOPICS: ${topics}`;

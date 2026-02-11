@@ -10,10 +10,18 @@ export async function generateMetaDescription(content: string): Promise<string> 
   console.log("[Code] Generating meta description...");
 
   // Remove HTML tags for text extraction
-  const textContent = content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  let textContent = content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  
+  // Remove markdown headings and generic heading text
+  textContent = textContent.replace(/^#+\s*/, ""); // Remove markdown heading markers
+  textContent = textContent.replace(/^(Introduction|Conclusion|Key Points|Key Insights|Implications)\s+/i, "");
 
   // Extract first 2-3 sentences (aiming for 150-160 characters)
-  const sentences = textContent.split(/[.!?]/).filter((s) => s.trim().length > 20);
+  const sentences = textContent.split(/[.!?]/).filter((s) => {
+    const trimmed = s.trim();
+    // Filter out very short sentences and heading-like text
+    return trimmed.length > 20 && !trimmed.match(/^(Introduction|Conclusion|Key Points)/i);
+  });
 
   let description = "";
   

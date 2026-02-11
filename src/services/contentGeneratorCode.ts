@@ -65,19 +65,28 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Use RSS content snippet as fallback
     const sourceContent = articleContent || item.contentSnippet || item.content || "";
 
-    // Structure the blog post
+    // Structure the blog post with better content
+    const paragraphs = sourceContent.split(/\n\n+/).filter(p => p.trim().length > 30);
+    
+    const introParagraphs = paragraphs.slice(0, 2);
+    const bodyParagraphs = paragraphs.slice(2, 5);
+    const conclusionParagraphs = paragraphs.slice(5, 7);
+    
+    // Use RSS title for the main heading, or create a descriptive one
+    const mainHeading = item.title || "Latest Technology Developments";
+    
     const blogSections = [
-      "## Introduction",
-      sourceContent.split("\n\n").slice(0, 3).join("\n\n"), // First few paragraphs
+      `## ${mainHeading}`,
+      introParagraphs.join("\n\n") || sourceContent.split("\n\n").slice(0, 2).join("\n\n"),
       "",
       "## Key Insights",
-      sourceContent.split("\n\n").slice(3, 6).join("\n\n"), // Middle paragraphs
+      bodyParagraphs.join("\n\n") || sourceContent.split("\n\n").slice(2, 4).join("\n\n") || "This development represents a significant advancement in the technology sector.",
       "",
       "## Implications for App Development",
-      "This development highlights the importance of staying current with technological advances in the app development space. For businesses looking to build or enhance their mobile applications, understanding these trends is crucial.",
+      "This development highlights the importance of staying current with technological advances in the app development space. For businesses looking to build or enhance their mobile applications, understanding these trends is crucial for maintaining competitive advantage.",
       "",
       "## Conclusion",
-      sourceContent.split("\n\n").slice(6, 8).join("\n\n") || "This news underscores the evolving landscape of technology and its impact on app development practices.",
+      conclusionParagraphs.join("\n\n") || "This news underscores the evolving landscape of technology and its impact on app development practices. Staying informed about these changes helps businesses make better decisions about their technology investments.",
     ];
 
     const blogContent = blogSections.join("\n\n");
