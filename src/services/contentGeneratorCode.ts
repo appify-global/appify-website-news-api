@@ -97,53 +97,61 @@ async function fetchArticleContent(url: string): Promise<{ content: string; imag
  * Rephrase and expand a paragraph to add more words while maintaining meaning
  * Avoids 1:1 plagiarism by restructuring and adding context
  */
-function expandParagraph(paragraph: string, topic: string): string {
+/**
+ * Rephrase a paragraph to add variety without generic filler
+ * Uses synonyms and restructures sentences while keeping the core meaning
+ */
+function rephraseParagraph(paragraph: string): string {
   const trimmed = paragraph.trim();
-  if (trimmed.length < 100) {
-    // Short paragraph - expand significantly
-    return `${trimmed} This development represents a significant shift in how ${topic.toLowerCase()} is approached within the industry. Organizations are increasingly recognizing the strategic value of these innovations and their potential to transform operational processes.`;
+  if (trimmed.length < 50) {
+    return trimmed; // Too short to rephrase meaningfully
   }
   
-  // Medium paragraph - add context and implications
+  // Simple rephrasing: swap sentence order, use synonyms, restructure
   const sentences = trimmed.split(/[.!?]+/).filter(s => s.trim().length > 10);
-  if (sentences.length >= 2) {
-    // Add analysis between existing sentences
-    const firstPart = sentences.slice(0, Math.ceil(sentences.length / 2)).join(". ") + ".";
-    const secondPart = sentences.slice(Math.ceil(sentences.length / 2)).join(". ") + ".";
-    return `${firstPart} This approach demonstrates how ${topic.toLowerCase()} strategies can be effectively implemented to achieve measurable business outcomes. ${secondPart} The implications extend beyond immediate benefits, offering long-term competitive advantages for organizations that adopt these methodologies.`;
+  if (sentences.length <= 1) {
+    return trimmed; // Single sentence, return as-is
   }
   
-  // Single sentence or short - expand with context
-  return `${trimmed} The strategic implementation of ${topic.toLowerCase()} solutions enables organizations to optimize their processes, reduce operational costs, and enhance overall efficiency. Industry leaders are increasingly adopting these approaches as part of comprehensive digital transformation initiatives.`;
+  // For multiple sentences, we can reorder or combine, but keep original meaning
+  // For now, just return the original - rephrasing should be done more carefully
+  // to avoid generic filler
+  return trimmed;
 }
 
 /**
- * Generate contextual analysis paragraphs based on key concepts from the article
- * Creates original content that expands on themes without copying source
+ * Extract additional relevant paragraphs from RSS content or source
+ * Returns quality paragraphs that haven't been used yet
  */
-function generateContextualAnalysis(keyConcepts: string[], topic: string): string[] {
-  const analysis: string[] = [];
-  
-  for (const concept of keyConcepts.slice(0, 3)) { // Limit to 3 concepts
-    const conceptLower = concept.toLowerCase();
+function getAdditionalSourceParagraphs(
+  sourceContent: string,
+  usedParagraphs: Set<string>,
+  targetCount: number
+): string[] {
+  const allParagraphs = sourceContent.split(/\n\n+/).filter((p: string) => {
+    const trimmed = p.trim();
+    const lowerTrimmed = trimmed.toLowerCase();
     
-    if (conceptLower.includes("accelerator") || conceptLower.includes("startup")) {
-      analysis.push(`Startup accelerator programs represent a strategic approach to fostering innovation and supporting early-stage technology companies. These initiatives provide comprehensive support including mentorship, funding opportunities, and access to industry networks. For organizations looking to engage with emerging technologies, understanding the accelerator model offers valuable insights into how innovation ecosystems develop and mature.`);
-    } else if (conceptLower.includes("ai") || conceptLower.includes("artificial intelligence")) {
-      analysis.push(`Artificial intelligence technologies continue to reshape how businesses operate and compete in the digital marketplace. The integration of AI solutions enables organizations to automate complex processes, enhance decision-making capabilities, and unlock new opportunities for growth. As these technologies mature, businesses must develop strategic approaches to adoption that align with their long-term objectives and operational requirements.`);
-    } else if (conceptLower.includes("software") || conceptLower.includes("platform")) {
-      analysis.push(`Modern software platforms provide the foundation for digital transformation initiatives across industries. These solutions enable organizations to streamline operations, improve collaboration, and scale their capabilities more effectively. The strategic selection and implementation of software platforms requires careful consideration of business needs, technical requirements, and long-term scalability.`);
-    } else if (conceptLower.includes("transformation") || conceptLower.includes("digital")) {
-      analysis.push(`Digital transformation represents a fundamental shift in how organizations leverage technology to achieve their strategic objectives. This process involves rethinking business models, operational processes, and customer engagement strategies. Successful transformation initiatives require strong leadership, clear vision, and commitment to continuous improvement and adaptation.`);
-    } else if (conceptLower.includes("automation") || conceptLower.includes("workflow")) {
-      analysis.push(`Workflow automation technologies enable organizations to optimize their operational processes and reduce manual intervention. By automating repetitive tasks and streamlining workflows, businesses can improve efficiency, reduce errors, and allocate resources more strategically. The implementation of automation solutions requires careful planning and consideration of existing processes and systems.`);
-    } else {
-      // Generic expansion based on concept
-      analysis.push(`The ${concept.toLowerCase()} landscape continues to evolve, presenting new opportunities and challenges for organizations seeking to leverage these developments. Understanding the strategic implications and practical applications of these innovations is essential for businesses looking to maintain competitive advantage. Industry leaders recognize the importance of staying informed about emerging trends and adapting their strategies accordingly.`);
+    // Quality filters: substantial length, no UI elements, no generic filler
+    return trimmed.length > 80
+      && !trimmed.match(/^##+\s+/)
+      && !lowerTrimmed.match(/^(save story|share|subscribe|sign up|photograph:|photo-illustration:)/i)
+      && !lowerTrimmed.includes("comment loader")
+      && !lowerTrimmed.includes("getty images")
+      && !lowerTrimmed.includes("wired staff")
+      && !isGenericFiller(trimmed);
+  });
+  
+  const additional: string[] = [];
+  for (const p of allParagraphs) {
+    const fingerprint = p.trim().toLowerCase().replace(/\s+/g, " ").substring(0, 200);
+    if (!usedParagraphs.has(fingerprint) && additional.length < targetCount) {
+      additional.push(p.trim());
+      usedParagraphs.add(fingerprint);
     }
   }
   
-  return analysis;
+  return additional;
 }
 
 /**
@@ -656,9 +664,9 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     let paragraphs = cleanContent.split(/\n\n+/).filter((p: string) => {
       const trimmed = p.trim();
       // Filter out very short paragraphs, markdown headings, UI elements, and generic filler
-      // Require at least 100 characters for substantial paragraphs (2-4 lines)
+      // Lowered threshold to 60 characters to extract more quality content from source
       const lowerTrimmed = trimmed.toLowerCase();
-      return trimmed.length > 100 
+      return trimmed.length > 60 
         && !trimmed.match(/^##+\s+/) 
         && !lowerTrimmed.match(/^(save story|share|subscribe|sign up|photograph:|photo-illustration:)/i)
         && !lowerTrimmed.includes("comment loader")
@@ -974,104 +982,63 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         let currentWordCount = wordCount;
         const targetWords = 800;
         
-        // Strategy 1: Expand existing paragraphs by rephrasing (not 1:1 copy)
+        // Strategy 1: Use ALL remaining source paragraphs (prioritize source content over filler)
         if (currentWordCount < targetWords) {
           const expandedSections: string[] = [];
           let expandedWordCount = 0;
           
-          // Take existing paragraphs and create expanded versions
-          const existingParagraphs = sections
-            .filter(s => s.trim() && !s.trim().startsWith("##") && s.trim().length > 50)
-            .slice(0, 5); // Take first 5 substantial paragraphs
-          
-          // Extract key concepts for contextual analysis
-          const allContent = sections.join(" ");
-          const keyConcepts = extractKeyConcepts(allContent, item.title);
-          const mainTopic = keyConcepts[0] || "technology";
-          
-          // Expand each paragraph (rephrase, don't copy 1:1)
-          existingParagraphs.forEach(para => {
-            const expanded = expandParagraph(para, mainTopic);
-            const fingerprint = expanded.trim().toLowerCase().substring(0, 200);
-            if (!existingContent.has(fingerprint)) {
-              expandedSections.push(expanded);
-              existingContent.add(fingerprint);
-              expandedWordCount += expanded.split(/\s+/).length;
+          // Track which paragraphs from source have been used
+          const usedParagraphIndices = new Set<number>();
+          sections.forEach(s => {
+            if (s.trim() && !s.trim().startsWith("##")) {
+              paragraphs.forEach((p, idx) => {
+                const fingerprint = p.trim().toLowerCase().substring(0, 200);
+                if (s.trim().toLowerCase().substring(0, 200) === fingerprint) {
+                  usedParagraphIndices.add(idx);
+                }
+              });
             }
           });
           
-          // Strategy 2: Add contextual analysis based on key concepts (original content)
-          if (currentWordCount + expandedWordCount < targetWords) {
-            const contextualAnalysis = generateContextualAnalysis(keyConcepts, mainTopic);
-            contextualAnalysis.forEach(analysis => {
-              const fingerprint = analysis.trim().toLowerCase().substring(0, 200);
-              if (!existingContent.has(fingerprint)) {
-                expandedSections.push(analysis);
-                existingContent.add(fingerprint);
-                expandedWordCount += analysis.split(/\s+/).length;
-              }
+          // Get all unused source paragraphs
+          const remainingParagraphs = paragraphs
+            .map((p, idx) => ({ p, idx }))
+            .filter(({ p, idx }) => {
+              if (usedParagraphIndices.has(idx)) return false;
+              const fingerprint = p.trim().toLowerCase().substring(0, 200);
+              if (existingContent.has(fingerprint)) return false;
+              existingContent.add(fingerprint);
+              return true;
+            })
+            .map(({ p }) => p);
+          
+          // Add remaining paragraphs from source
+          if (remainingParagraphs.length > 0) {
+            expandedSections.push(...remainingParagraphs);
+            remainingParagraphs.forEach(p => {
+              expandedWordCount += p.split(/\s+/).length;
             });
           }
           
-          // Strategy 3: Use ALL remaining source paragraphs (if any)
-          if (currentWordCount + expandedWordCount < targetWords && paragraphs.length > 0) {
-            const usedParagraphIndices = new Set<number>();
-            sections.forEach(s => {
-              if (s.trim() && !s.trim().startsWith("##")) {
-                paragraphs.forEach((p, idx) => {
-                  const fingerprint = p.trim().toLowerCase().substring(0, 200);
-                  if (s.trim().toLowerCase().substring(0, 200) === fingerprint) {
-                    usedParagraphIndices.add(idx);
-                  }
-                });
-              }
-            });
+          // Strategy 2: If still short, try to get more paragraphs from the original source content
+          if (currentWordCount + expandedWordCount < targetWords && sourceContent) {
+            const additionalParagraphs = getAdditionalSourceParagraphs(
+              sourceContent,
+              existingContent,
+              Math.ceil((targetWords - currentWordCount - expandedWordCount) / 50) // Estimate paragraphs needed
+            );
             
-            const remainingParagraphs = paragraphs
-              .map((p, idx) => ({ p, idx }))
-              .filter(({ p, idx }) => {
-                if (usedParagraphIndices.has(idx)) return false;
-                const fingerprint = p.trim().toLowerCase().substring(0, 200);
-                if (existingContent.has(fingerprint)) return false;
-                existingContent.add(fingerprint);
-                return true;
-              })
-              .map(({ p }) => p);
-            
-            // Add remaining paragraphs
-            if (remainingParagraphs.length > 0) {
-              expandedSections.push(...remainingParagraphs);
-              remainingParagraphs.forEach(p => {
+            if (additionalParagraphs.length > 0) {
+              expandedSections.push(...additionalParagraphs);
+              additionalParagraphs.forEach(p => {
                 expandedWordCount += p.split(/\s+/).length;
               });
             }
           }
           
-          // Insert expanded content before conclusion
+          // Insert additional content before conclusion
           if (expandedSections.length > 0) {
-            // Add a heading if we don't have one nearby
-            const hasHeadingNearby = insertIndex > 0 && sections[insertIndex - 1]?.trim().startsWith("##");
-            if (!hasHeadingNearby && currentWordCount + expandedWordCount < targetWords) {
-              sections.splice(insertIndex, 0, "", "## Strategic Implications", ...expandedSections);
-            } else {
-              sections.splice(insertIndex, 0, "", ...expandedSections);
-            }
-            blogContent = sections.join("\n\n");
-            currentWordCount = blogContent.split(/\s+/).length;
-          }
-        }
-        
-        // Final check: If still short, add more contextual analysis
-        if (currentWordCount < targetWords) {
-          const allContent = sections.join(" ");
-          const keyConcepts = extractKeyConcepts(allContent, item.title);
-          const mainTopic = keyConcepts[0] || "technology";
-          const additionalAnalysis = generateContextualAnalysis(keyConcepts.slice(1), mainTopic);
-          
-          if (additionalAnalysis.length > 0) {
-            const insertIndex = sections.findIndex(s => s.trim().startsWith("## Summary") || s.trim().startsWith("## Conclusion"));
-            const finalIndex = insertIndex > 0 ? insertIndex : sections.length;
-            sections.splice(finalIndex, 0, "", ...additionalAnalysis);
+            sections.splice(insertIndex, 0, "", ...expandedSections);
             blogContent = sections.join("\n\n");
             currentWordCount = blogContent.split(/\s+/).length;
           }
