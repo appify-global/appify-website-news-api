@@ -70,7 +70,16 @@ async function fetchArticleContent(url: string): Promise<{ content: string; imag
               clean = clean.replace(/\s+/g, " ").trim();
               return clean;
             })
-            .filter((t) => t.length > 50 && !t.match(/^(Save Story|Share|Subscribe|Sign up)/i)) // Filter out very short paragraphs and UI elements
+            .filter((t) => {
+              // Filter out very short paragraphs
+              if (t.length < 50) return false;
+              // Filter out UI elements and source article metadata
+              const lower = t.toLowerCase();
+              return !lower.match(/^(save story|share|subscribe|sign up|photograph:|photo-illustration:|comment loader|getty images|wired staff)/i) &&
+                     !lower.includes("comment loader") &&
+                     !lower.includes("save this story") &&
+                     !lower.includes("photo-illustration:");
+            })
             .slice(0, 20) // Take first 20 paragraphs
             .join("\n\n");
 
@@ -237,7 +246,12 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Clean source content - remove markdown headings, UI elements, etc.
     let cleanContent = sourceContent
       .replace(/^##\s+[^\n]+\n\n/gm, "") // Remove markdown headings
-      .replace(/^(Save Story|Share|Subscribe|Sign up|Photograph:)[^\n]*\n/gi, "") // Remove UI elements
+      .replace(/^(Save Story|Share|Subscribe|Sign up|Photograph:|Photo-Illustration:)[^\n]*\n/gi, "") // Remove UI elements
+      .replace(/Photo-Illustration:[^\n]*/gi, "") // Remove photo credits
+      .replace(/Comment Loader[^\n]*/gi, "") // Remove comment loader
+      .replace(/Save this story[^\n]*/gi, "") // Remove save story text
+      .replace(/Getty Images[^\n]*/gi, "") // Remove image credits
+      .replace(/WIRED Staff[^\n]*/gi, "") // Remove staff credits
       .replace(/\n{3,}/g, "\n\n") // Normalize multiple newlines
       .trim();
     
@@ -246,9 +260,14 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
       const trimmed = p.trim();
       // Filter out very short paragraphs, markdown headings, and UI elements
       // Require at least 100 characters for substantial paragraphs (2-4 lines)
+      const lowerTrimmed = trimmed.toLowerCase();
       return trimmed.length > 100 
         && !trimmed.match(/^##+\s+/) 
-        && !trimmed.match(/^(Save Story|Share|Subscribe|Sign up|Photograph:)/i);
+        && !lowerTrimmed.match(/^(save story|share|subscribe|sign up|photograph:|photo-illustration:)/i)
+        && !lowerTrimmed.includes("comment loader")
+        && !lowerTrimmed.includes("save this story")
+        && !lowerTrimmed.includes("getty images")
+        && !lowerTrimmed.includes("wired staff");
     });
     
     // Get more paragraphs for a comprehensive, longer article (targeting 3000-4000 words)

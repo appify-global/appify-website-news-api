@@ -97,8 +97,13 @@ export function parseContentBlocks(htmlContent: string): ContentBlock[] {
     // Remove markdown headings that might have slipped through
     text = text.replace(/^##+\s+[^\n]+/gm, "").trim();
     
-    // Remove UI elements
-    text = text.replace(/^(Save Story|Share|Subscribe|Sign up|Photograph:)[^\n]*/gim, "").trim();
+    // Remove UI elements and source article metadata
+    text = text.replace(/^(Save Story|Share|Subscribe|Sign up|Photograph:|Photo-Illustration:)[^\n]*/gim, "").trim();
+    text = text.replace(/Photo-Illustration:[^\n]*/gi, "").trim();
+    text = text.replace(/Comment Loader[^\n]*/gi, "").trim();
+    text = text.replace(/Save this story[^\n]*/gi, "").trim();
+    text = text.replace(/Getty Images[^\n]*/gi, "").trim();
+    text = text.replace(/WIRED Staff[^\n]*/gi, "").trim();
     
     // Decode HTML entities
     text = text
@@ -153,54 +158,27 @@ export function generateSlug(title: string): string {
 }
 
 /**
- * Generate a 2-3 line excerpt from content blocks.
- * Removes hashtags and creates a clean description.
+ * Generate a clean 2-3 line excerpt from content blocks.
+ * Simple, straightforward extraction from first paragraph(s).
  */
 export function generateExcerpt(blocks: ContentBlock[], metaDescription?: string): string {
-  // If we have a meta description, use it as base (it's usually well-formatted)
-  if (metaDescription) {
-    // Remove hashtags and clean up
-    let clean = metaDescription
-      .replace(/#\w+/g, "") // Remove hashtags
-      // Decode HTML entities
-      .replace(/&#039;/g, "'")
-      .replace(/&apos;/g, "'")
-      .replace(/&quot;/g, '"')
-      .replace(/&amp;/g, "&")
-      // Remove generic boilerplate
-      .replace(/is a key focus in today's technology landscape\.?/gi, "")
-      .replace(/Learn about the latest developments in app development and technology\.?/gi, "")
-      .replace(/\s+/g, " ") // Normalize whitespace
-      .trim();
-    
-    // Ensure it's 2-3 lines (roughly 150-300 characters)
-    if (clean.length > 300) {
-      // Find a good breaking point (sentence end)
-      const truncated = clean.slice(0, 300);
-      const lastPeriod = truncated.lastIndexOf(".");
-      const lastComma = truncated.lastIndexOf(",");
-      const breakPoint = Math.max(lastPeriod, lastComma);
-      
-      if (breakPoint > 150) {
-        clean = clean.slice(0, breakPoint + 1);
-      } else {
-        clean = clean.slice(0, 297) + "...";
-      }
+  // Simple approach: Extract from first 1-2 paragraphs only
+  const paragraphs = blocks.filter((b) => b.type === "paragraph").slice(0, 2);
+  if (paragraphs.length === 0) {
+    // Fallback to meta description if no paragraphs
+    if (metaDescription) {
+      return metaDescription.slice(0, 250).trim();
     }
-    
-    return clean;
+    return "";
   }
 
-  // Fallback: Extract from first 2-3 paragraphs
-  const paragraphs = blocks.filter((b) => b.type === "paragraph").slice(0, 3);
-  if (paragraphs.length === 0) return "";
-
+  // Get text from first paragraph(s), clean it up
   let excerpt = paragraphs
     .map((p) => {
       let text = p.text || "";
-      // Remove HTML tags
+      // Remove HTML tags (keep text only)
       text = text.replace(/<[^>]+>/g, "");
-      // Decode HTML entities (fix &#039; and other entities)
+      // Decode HTML entities
       text = text
         .replace(/&#039;/g, "'")
         .replace(/&apos;/g, "'")
@@ -209,27 +187,23 @@ export function generateExcerpt(blocks: ContentBlock[], metaDescription?: string
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">")
         .replace(/&nbsp;/g, " ");
-      // Remove hashtags
-      text = text.replace(/#\w+/g, "");
-      // Remove generic boilerplate text that might have been added
-      text = text.replace(/is a key focus in today's technology landscape\.?/gi, "");
-      text = text.replace(/Learn about the latest developments in app development and technology\.?/gi, "");
       // Clean up whitespace
       text = text.replace(/\s+/g, " ").trim();
       return text;
     })
-    .filter((t) => t.length > 0 && !t.match(/^(App development|app development)/i)) // Filter out generic starts
-    .join(" ");
+    .filter((t) => t.length > 20) // Only keep substantial text
+    .join(" ")
+    .trim();
 
-  // Limit to ~250 characters for 2-3 lines
+  // Limit to ~200-250 characters (2-3 lines)
   if (excerpt.length > 250) {
     const truncated = excerpt.slice(0, 250);
     const lastPeriod = truncated.lastIndexOf(".");
     const lastSpace = truncated.lastIndexOf(" ");
     
-    if (lastPeriod > 150) {
+    if (lastPeriod > 100) {
       excerpt = excerpt.slice(0, lastPeriod + 1);
-    } else if (lastSpace > 150) {
+    } else if (lastSpace > 100) {
       excerpt = excerpt.slice(0, lastSpace) + "...";
     } else {
       excerpt = truncated + "...";
