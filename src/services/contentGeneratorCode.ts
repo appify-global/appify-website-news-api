@@ -94,6 +94,23 @@ async function fetchArticleContent(url: string): Promise<{ content: string; imag
 }
 
 /**
+ * Remove time-sensitive references to make content evergreen
+ */
+function makeContentEvergreen(content: string): string {
+  return content
+    .replace(/this (week|month|year|past week|past month)/gi, 'recently')
+    .replace(/(today|yesterday|last (week|month|year))/gi, 'recently')
+    .replace(/in (2024|2025|2026)/gi, 'recently')
+    .replace(/over the (past|last) (few|several) (days|weeks|months)/gi, 'recently')
+    .replace(/just (announced|released|launched)/gi, 'announced')
+    .replace(/I (discovered|found|learned) (this|that) (while|when)/gi, 'Research shows that')
+    .replace(/I (had|gave|asked|tried)/gi, 'Organizations')
+    .replace(/my (experience|testing|use)/gi, 'industry experience')
+    .replace(/personal (assistant|use)/gi, 'business applications')
+    .replace(/this past (week|month)/gi, 'recently');
+}
+
+/**
  * Analyze content to generate dynamic, contextual headings based on the actual article topic
  */
 function analyzeContentForHeadings(content: string, title: string): {
@@ -188,29 +205,12 @@ function analyzeContentForHeadings(content: string, title: string): {
     includeAppDevSection = true;
   }
   
-  // Generate contextual content based on headings
-  const mainSectionContent = [
-    "This development represents a significant advancement in the technology sector, with far-reaching implications for businesses and consumers alike.",
-    "The integration of new technologies and methodologies is reshaping how organizations operate and compete in the digital marketplace.",
-    "Understanding these changes is crucial for staying ahead in an increasingly competitive technological environment."
-  ];
-  
-  const secondSectionContent = [
-    "From a technical perspective, this development highlights the importance of staying current with emerging technologies and industry best practices.",
-    "Organizations that adapt quickly to these changes are better positioned to leverage new opportunities and maintain their competitive edge."
-  ];
-  
-  const appDevContent = [
-    "This development highlights the importance of staying current with technological advances in the app development space.",
-    "For businesses looking to build or enhance their mobile applications, understanding these trends is crucial for maintaining competitive advantage.",
-    "The evolving technology landscape presents both challenges and opportunities for app developers and businesses seeking to innovate."
-  ];
-  
-  const conclusionContent = [
-    "This news underscores the evolving landscape of technology and its impact on app development practices.",
-    "Staying informed about these changes helps businesses make better decisions about their technology investments.",
-    "As the industry continues to evolve, organizations that embrace innovation and adapt to new technologies will be best positioned for long-term success."
-  ];
+  // Remove generic filler content - let source content speak for itself
+  // Only use source paragraphs, no generic boilerplate
+  const mainSectionContent: string[] = [];
+  const secondSectionContent: string[] = [];
+  const appDevContent: string[] = [];
+  const conclusionContent: string[] = [];
   
   return {
     mainSectionHeading,
@@ -241,7 +241,10 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     }
     
     // Use RSS content snippet as fallback
-    const sourceContent = articleData.content || item.contentSnippet || item.content || "";
+    let sourceContent = articleData.content || item.contentSnippet || item.content || "";
+    
+    // Make content evergreen - remove time-sensitive references
+    sourceContent = makeContentEvergreen(sourceContent);
 
     // Clean source content - remove markdown headings, UI elements, etc.
     let cleanContent = sourceContent
@@ -463,7 +466,9 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     console.warn(`[Code] Failed to fetch article content, using RSS snippet: ${error.message}`);
     
     // Fallback: Use RSS content snippet with comprehensive structure
-    const fallbackContent = item.contentSnippet || item.content || item.title;
+    let fallbackContent = item.contentSnippet || item.content || item.title;
+    // Make content evergreen
+    fallbackContent = makeContentEvergreen(fallbackContent);
     const mainHeading = item.title || "Latest Technology Developments";
     
     // Analyze content for dynamic headings

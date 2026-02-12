@@ -100,6 +100,21 @@ export function validateArticleContent(
         `Primary keyword "${primaryKeyword}" appears ${keywordMatches} times. Must appear 2-4 times only (keyword stuffing detected).`
       );
     }
+    
+    // Check keyword in strategic locations for better SEO
+    const first100Words = content.split(/\s+/).slice(0, 100).join(" ").toLowerCase();
+    if (!first100Words.includes(keywordLower)) {
+      warnings.push(`Primary keyword "${primaryKeyword}" should appear in the first 100 words for better SEO.`);
+    }
+    
+    // Check keyword in at least one H2
+    const h2Headings = contentBlocks
+      .filter(b => b.type === "heading" && b.text)
+      .map(b => b.text!.toLowerCase());
+    const keywordInHeading = h2Headings.some(h => h.includes(keywordLower));
+    if (!keywordInHeading && h2Headings.length > 0) {
+      warnings.push(`Primary keyword "${primaryKeyword}" should appear in at least one H2 heading for better SEO.`);
+    }
   }
 
   // 4. Ensure each H2 section directly relates to the evergreen angle

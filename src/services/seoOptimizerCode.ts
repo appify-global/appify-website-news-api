@@ -71,6 +71,152 @@ function extractKeywords(content: string): string[] {
 }
 
 /**
+ * Get semantic variations and LSI keywords for the primary keyword
+ */
+function getSemanticKeywords(primaryKeyword: string): string[] {
+  const semanticMap: Record<string, string[]> = {
+    'ai agent': ['AI assistant', 'intelligent agent', 'autonomous agent', 'AI automation', 'agent technology'],
+    'ai software': ['artificial intelligence platform', 'AI solution', 'machine learning software', 'AI system', 'intelligent software'],
+    'digital transformation': ['digital strategy', 'digital innovation', 'digital adoption', 'business transformation', 'digital modernization'],
+    'workforce automation': ['workplace automation', 'business automation', 'process automation', 'task automation', 'operational automation'],
+    'app development': ['application development', 'mobile app development', 'software development', 'app creation', 'application engineering']
+  };
+  
+  const keywordLower = primaryKeyword.toLowerCase();
+  return semanticMap[keywordLower] || [];
+}
+
+/**
+ * Strategically integrate primary keyword into content without oversaturation
+ * Places keyword in: first 100 words, 2-3 H2 headings, conclusion
+ */
+function integratePrimaryKeyword(
+  content: string,
+  primaryKeyword: string,
+  targetCount: number = 3
+): string {
+  const keywordLower = primaryKeyword.toLowerCase();
+  const contentLower = content.toLowerCase();
+  
+  // Count current occurrences
+  const keywordRegex = new RegExp(`\\b${keywordLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+  const currentCount = (contentLower.match(keywordRegex) || []).length;
+  
+  if (currentCount >= targetCount) {
+    return content; // Already has enough
+  }
+  
+  const needed = targetCount - currentCount;
+  let optimized = content;
+  let added = 0;
+  
+  // Strategy 1: Ensure keyword in first 100 words if missing
+  const first100Words = optimized.split(/\s+/).slice(0, 100).join(" ");
+  if (!first100Words.toLowerCase().includes(keywordLower) && added < needed) {
+    // Find first paragraph and add keyword naturally
+    const firstParagraphMatch = optimized.match(/^(.*?)(\n\n|$)/m);
+    if (firstParagraphMatch && firstParagraphMatch[1].length > 50) {
+      const firstPara = firstParagraphMatch[1];
+      // Add keyword variation naturally at the end of first paragraph
+      const variations = [
+        `${primaryKeyword} represents`,
+        `the ${primaryKeyword} landscape`,
+        `${primaryKeyword} solutions`,
+        `implementing ${primaryKeyword}`
+      ];
+      const variation = variations.find(v => !firstPara.toLowerCase().includes(v.toLowerCase()));
+      if (variation) {
+        optimized = optimized.replace(
+          firstParagraphMatch[0],
+          `${firstPara}. Understanding ${variation} is crucial for businesses seeking competitive advantage.${firstParagraphMatch[2] || ''}`
+        );
+        added++;
+      }
+    }
+  }
+  
+  // Strategy 2: Add to H2 headings (if keyword not already there and heading is relevant)
+  if (added < needed) {
+    const h2Pattern = /(##\s+)([^\n]+)/g;
+    optimized = optimized.replace(h2Pattern, (match, prefix, heading) => {
+      if (added >= needed) return match;
+      if (!heading.toLowerCase().includes(keywordLower)) {
+        // Only add to non-generic headings
+        const genericHeadings = ['introduction', 'conclusion', 'summary', 'overview', 'key takeaways'];
+        const isGeneric = genericHeadings.some(g => heading.toLowerCase().includes(g));
+        
+        if (!isGeneric && heading.length > 10) {
+          // Add keyword variation to heading if it makes sense
+          const keywordVariations: Record<string, string[]> = {
+            'ai agent': ['AI Agent', 'AI Agents', 'AI Agent Technology'],
+            'ai software': ['AI Software', 'AI Software Solutions', 'AI Software Platform'],
+            'digital transformation': ['Digital Transformation', 'Digital Transformation Strategy'],
+            'workforce automation': ['Workforce Automation', 'Workforce Automation Solutions'],
+            'app development': ['App Development', 'Application Development', 'App Development Services']
+          };
+          
+          const variations = keywordVariations[keywordLower] || [primaryKeyword];
+          const variation = variations[0];
+          
+          // Add variation to heading (only if it doesn't make it too long)
+          if (heading.length + variation.length < 80) {
+            added++;
+            return `${prefix}${heading}: ${variation} Insights`;
+          }
+        }
+      }
+      return match;
+    });
+  }
+  
+  // Strategy 3: Add to conclusion section if needed
+  if (added < needed) {
+    const conclusionMatch = optimized.match(/##\s+(Summary|Conclusion|Final Thoughts|Strategic Outlook)[^\n]*\n\n(.*?)(?=\n\n##|$)/is);
+    if (conclusionMatch && !conclusionMatch[2].toLowerCase().includes(keywordLower)) {
+      const conclusionText = conclusionMatch[2];
+      optimized = optimized.replace(
+        conclusionMatch[0],
+        `${conclusionMatch[1]}\n\n${conclusionText}\n\nAs organizations continue to explore ${primaryKeyword.toLowerCase()} solutions, staying informed about best practices and implementation strategies becomes essential for long-term success.`
+      );
+      added++;
+    }
+  }
+  
+  return optimized;
+}
+
+/**
+ * Naturally integrate semantic keywords throughout content
+ */
+function integrateSemanticKeywords(content: string, primaryKeyword: string): string {
+  const semanticKeywords = getSemanticKeywords(primaryKeyword);
+  let optimized = content;
+  
+  // Replace some instances of primary keyword with semantic variations (max 30% replacement)
+  semanticKeywords.slice(0, 2).forEach((semantic) => {
+    const primaryRegex = new RegExp(`\\b${primaryKeyword}\\b`, 'gi');
+    const matches = optimized.match(primaryRegex);
+    const matchCount = matches ? matches.length : 0;
+    
+    // Only replace if we have more than 2 occurrences (to maintain natural flow)
+    if (matchCount > 2) {
+      let replaced = false;
+      optimized = optimized.replace(primaryRegex, (match, offset) => {
+        // Don't replace first occurrence or if in heading
+        const beforeMatch = optimized.substring(Math.max(0, offset - 50), offset);
+        if (!replaced && offset > 200 && !beforeMatch.includes('##')) {
+          replaced = true;
+          return semantic;
+        }
+        return match;
+      });
+    }
+  });
+  
+  return optimized;
+}
+
+/**
  * Add strategic internal links to content (8-12 links for SEO)
  */
 function addInternalLinks(content: string): string {
@@ -366,8 +512,14 @@ export async function optimizeForSEO(
     console.warn(`[Code] Warning: Only ${keywords.length} keywords found. Consider expanding keyword coverage.`);
   }
 
+  // NEW: Integrate primary keyword strategically (2-4 times)
+  let optimizedContent = integratePrimaryKeyword(blogContent, primaryKeyword, 3);
+  
+  // NEW: Add semantic keywords naturally
+  optimizedContent = integrateSemanticKeywords(optimizedContent, primaryKeyword);
+  
   // Add strategic internal links (targeting 8-12 links for SEO)
-  let optimizedContent = addInternalLinks(blogContent);
+  optimizedContent = addInternalLinks(optimizedContent);
   
   // Count links added
   const linkMatches = optimizedContent.match(/<a href="[^"]+">/g);
@@ -375,16 +527,6 @@ export async function optimizeForSEO(
   console.log(`[Code] Added ${linkCount} internal links (target: 8-12)`);
   if (linkCount < 8) {
     console.warn(`[Code] Warning: Only ${linkCount} internal links added. Consider adding more strategic links.`);
-  }
-
-  // Ensure primary keyword appears in first 150 words (but don't add generic text that will become excerpt)
-  const words = optimizedContent.split(/\s+/);
-  const first150Words = words.slice(0, 150).join(" ");
-  if (!first150Words.toLowerCase().includes(primaryKeyword.toLowerCase())) {
-    // Add keyword naturally without generic boilerplate
-    optimizedContent = `${optimizedContent}`;
-    // Note: We removed the generic "is a key focus in today's technology landscape" text
-    // to avoid it appearing in excerpts. The keyword should already be in the content.
   }
 
   // Determine topic
