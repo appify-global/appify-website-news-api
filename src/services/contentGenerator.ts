@@ -56,6 +56,8 @@ Topic Description: ${blueprint.description}`,
    - Use ## for H2 headings (use the EXACT headings from the blueprint)
    - Use ### for H3 subheadings if needed within sections
    - Use regular paragraphs (no markdown formatting like **bold** or *italic*)
+   - NO bullet points, NO checklists, NO numbered lists
+   - Write in full paragraphs with depth and analysis - each paragraph should be 3-5 sentences
    - NO explanations, NO introductions like "Here's an article..." or "This article covers..."
    - NO markdown code blocks (no \`\`\`)
    - NO HTML tags
@@ -67,6 +69,8 @@ Topic Description: ${blueprint.description}`,
    - Start with the first section heading: ## ${blueprint.sections[0]}
    - Follow with the remaining sections in order: ${blueprint.sections.slice(1).map(s => `## ${s}`).join(', ')}
    - Each section must have 2-3 substantial paragraphs (minimum 150 words per section)
+   - Each paragraph must be 3-5 sentences with depth and analysis - NO bullet points or checklists
+   - Write in full narrative paragraphs that explain concepts, provide context, and offer insights
    - DO NOT use generic headings like "Why It Matters", "Industry Response", "Future Outlook"
 
 4. **Content Requirements**:
@@ -89,12 +93,14 @@ Topic Description: ${blueprint.description}`,
    - Throughout body paragraphs (natural density ~1-2%)
 
 7. **Content Quality**:
+   - Write in full paragraphs with depth - NO bullet points, NO checklists, NO numbered lists
+   - Each paragraph should be 3-5 sentences that develop an idea with context, examples, and analysis
    - Avoid generic filler phrases like "industry landscape continues to evolve" or "maintain competitive advantage"
    - Avoid generic praise language ("revolutionary", "game-changing", etc.)
    - Avoid promotional tone
    - Feel like industry thought leadership, not commentary on news
    - Include practical insights and strategic depth
-   - Provide actionable value with specific implementation guidance
+   - Provide actionable value with specific implementation guidance explained in narrative form
    - Use authoritative, professional tone
    - NO emojis
    - NO mention of the original RSS source or article
