@@ -198,6 +198,46 @@ function extractKeyConcepts(content: string, title: string): string[] {
 /**
  * Filter out time-based openings and news-style starts
  */
+/**
+ * Remove quotes and attributions from content
+ */
+function removeQuotes(content: string): string {
+  return content
+    .replace(/"[^"]{20,}"/g, '') // Remove long quotes
+    .replace(/(said|says|according to|told|stated|quoted|in an interview|in a statement|told [^.!?]+)[^.!?]*[.!?]/gi, '')
+    .replace(/\([^)]*said[^)]*\)/gi, '')
+    .replace(/\[[^\]]*\]/g, '') // Remove brackets with quotes
+    .replace(/"[^"]+"/g, '') // Remove any remaining quotes
+    .trim();
+}
+
+/**
+ * Remove news fragments and reporting language
+ */
+function removeNewsFragments(content: string): string {
+  return content
+    .replace(/\b(announced|reported|revealed|disclosed|confirmed|unveiled|launched|introduced)\b/gi, '')
+    .replace(/\b(in an interview|in a statement|according to sources|sources say|according to)\b/gi, '')
+    .replace(/\b(on|this|last|next)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|month|year)\b/gi, '')
+    .replace(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}\b/gi, '')
+    .trim();
+}
+
+/**
+ * Remove newsletter references and CTAs
+ */
+function removeNewsletterReferences(content: string): string {
+  return content
+    .replace(/subscribe to [^.!?]+/gi, '')
+    .replace(/sign up for [^.!?]+/gi, '')
+    .replace(/join our [^.!?]+/gi, '')
+    .replace(/for more [^.!?]+newsletter[^.!?]+/gi, '')
+    .replace(/weekly [^.!?]+newsletter[^.!?]+/gi, '')
+    .replace(/digital nation[^.!?]+newsletter[^.!?]+/gi, '')
+    .replace(/e-newsletter[^.!?]+/gi, '')
+    .trim();
+}
+
 function filterTimeBasedOpenings(paragraphs: string[]): string[] {
   const timeBasedPatterns = [
     /^on (tuesday|wednesday|thursday|friday|saturday|sunday|monday)/i,
@@ -213,11 +253,23 @@ function filterTimeBasedOpenings(paragraphs: string[]): string[] {
     /^[A-Z][a-z]+ said/i,
     /^[A-Z][a-z]+ revealed/i,
     /^[A-Z][a-z]+ reported/i,
+    /^[A-Z][a-z]+ told/i,
+    /^[A-Z][a-z]+ stated/i,
+    /^in an interview/i,
+    /^according to/i,
   ];
   
   return paragraphs.filter(p => {
     const firstSentence = p.trim().split(/[.!?]/)[0];
-    return !timeBasedPatterns.some(pattern => pattern.test(firstSentence));
+    // Also check if paragraph contains quotes or news fragments
+    const hasQuotes = /"[^"]{20,}"/.test(p) || /\b(said|says|according to|told|stated|quoted|in an interview)\b/i.test(p);
+    const hasNewsFragment = /\b(announced|reported|revealed|in a statement)\b/i.test(p);
+    const hasNewsletter = /\b(subscribe|newsletter|sign up|e-newsletter)\b/i.test(p);
+    
+    return !timeBasedPatterns.some(pattern => pattern.test(firstSentence)) 
+      && !hasQuotes 
+      && !hasNewsFragment 
+      && !hasNewsletter;
   });
 }
 
@@ -282,6 +334,8 @@ function isGenericFiller(paragraph: string): boolean {
     /presenting new opportunities and challenges/i,
     /understanding the strategic implications/i,
     /essential for businesses looking to maintain competitive advantage/i,
+    /maintain competitive advantage/i,
+    /stay ahead of the competition/i,
     /industry leaders recognize the importance/i,
     /staying informed about emerging trends/i,
     /adapting their strategies accordingly/i,
@@ -293,10 +347,27 @@ function isGenericFiller(paragraph: string): boolean {
     /far-reaching implications for businesses/i,
     /reshaping how organizations operate/i,
     /compete in the digital marketplace/i,
+    /strategic implications/i,
+    /essential for businesses/i,
   ];
   
   const lowerPara = paragraph.toLowerCase();
   return genericPatterns.some(pattern => pattern.test(lowerPara));
+}
+
+/**
+ * Check if paragraph is too short or broken
+ */
+function isBrokenParagraph(paragraph: string): boolean {
+  const trimmed = paragraph.trim();
+  // Too short
+  if (trimmed.length < 50) return true;
+  // Incomplete sentence (no ending punctuation)
+  const sentences = trimmed.split(/[.!?]+/).filter(s => s.trim().length > 10);
+  if (sentences.length === 0) return true;
+  // Fragment (starts with lowercase or is just a few words)
+  if (trimmed.split(/\s+/).length < 8) return true;
+  return false;
 }
 
 /**
@@ -453,22 +524,39 @@ function generateTopicSpecificHeadings(coreConcept: string, title: string, conte
  * Preserves grammar and readability while making content timeless
  */
 function makeContentEvergreen(content: string): string {
-  let result = content
-    // Time references - make generic
-    .replace(/this (week|month|year|past week|past month)/gi, 'recently')
-    .replace(/(today|yesterday|last (week|month|year))/gi, 'recently')
-    .replace(/in (2024|2025|2026)/gi, 'recently')
-    .replace(/over the (past|last) (few|several) (days|weeks|months)/gi, 'recently')
-    .replace(/this past (week|month)/gi, 'recently')
-    .replace(/just (announced|released|launched)/gi, 'announced')
-    // First-person to third-person - preserve grammar
+  let result = content;
+  
+  // Step 1: Remove quotes and attributions
+  result = removeQuotes(result);
+  
+  // Step 2: Remove news fragments
+  result = removeNewsFragments(result);
+  
+  // Step 3: Remove newsletter references
+  result = removeNewsletterReferences(result);
+  
+  // Step 4: Remove time references completely (not replace with "recently")
+  result = result
+    .replace(/\b(this|last|next)\s+(week|month|year|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi, '')
+    .replace(/\b(today|yesterday|tomorrow)\b/gi, '')
+    .replace(/\bin (2024|2025|2026)\b/gi, '')
+    .replace(/\bover the (past|last) (few|several) (days|weeks|months)\b/gi, '')
+    .replace(/\bthis past (week|month)\b/gi, '')
+    .replace(/\bjust (announced|released|launched)\b/gi, '');
+  
+  // Step 5: Remove generic filler
+  result = result
+    .replace(/maintain competitive advantage/gi, '')
+    .replace(/industry leaders recognize/gi, '')
+    .replace(/essential for businesses looking to maintain competitive advantage/gi, '')
+    .replace(/stay ahead of the competition/gi, '');
+  
+  // Step 6: First-person to third-person - preserve grammar
+  result = result
     .replace(/I (discovered|found|learned) (this|that) (while|when)/gi, 'Research shows that')
-    // Handle "I had" patterns more carefully - make it more natural
     .replace(/I had (the|a|an) ([^.!?]+?)(?=\s+[A-Z]|$|\.|,|;)/gi, (match, article, rest) => {
-      // If the rest starts with a verb, make it "Organizations can use [noun] to [verb]"
       const restTrimmed = rest.trim();
       if (/^(monitor|access|use|configure|set|give|enable|dig|order|negotiate)/i.test(restTrimmed)) {
-        // Extract the noun and verb
         const verbMatch = restTrimmed.match(/^(\w+)\s+(.+)$/);
         if (verbMatch) {
           const verb = verbMatch[1];
@@ -482,31 +570,24 @@ function makeContentEvergreen(content: string): string {
     .replace(/I gave ([^.!?]+)/gi, 'Organizations can provide $1')
     .replace(/I asked ([^.!?]+)/gi, 'Organizations can request $1')
     .replace(/I tried ([^.!?]+)/gi, 'Organizations can attempt $1')
-    // Personal references - make professional
     .replace(/my (experience|testing|use)/gi, 'industry experience')
     .replace(/personal (assistant|use)/gi, 'business applications')
-    // Remove overly personal statements that break flow
     .replace(/I (figured|thought|decided|wanted)/gi, 'Industry leaders')
     .replace(/I (was|am|will be)/gi, 'Organizations are');
   
-  // Cleanup pass: Fix any remaining broken "Organizations" patterns
+  // Step 7: Cleanup broken patterns
   result = result
-    // Fix "Organizations the [noun] [verb]" -> "Organizations can use the [noun] to [verb]"
     .replace(/Organizations (the|a|an) ([a-z][^.!?]*?)\s+(monitor|access|use|configure|set|give|enable|dig|order|negotiate)\s+([^.!?]+)/gi, 
-      (match, article, noun, verb, object) => {
-        return `Organizations can use ${article} ${noun} to ${verb} ${object}`;
-      })
-    // Fix "Organizations can have the [noun] [verb]" -> "Organizations can use the [noun] to [verb]"
+      (match, article, noun, verb, object) => `Organizations can use ${article} ${noun} to ${verb} ${object}`)
     .replace(/Organizations can have (the|a|an) ([a-z][^.!?]*?)\s+(monitor|access|use|configure|set|give|enable|dig|order|negotiate)\s+([^.!?]+)/gi,
-      (match, article, noun, verb, object) => {
-        return `Organizations can use ${article} ${noun} to ${verb} ${object}`;
-      })
-    // Fix "Organizations it [verb]" -> "Organizations can [verb] it"
+      (match, article, noun, verb, object) => `Organizations can use ${article} ${noun} to ${verb} ${object}`)
     .replace(/Organizations it ([a-z][^.!?]+)/gi, 'Organizations can $1 it')
-    // Fix "Organizations [ProperNoun] to [verb]" -> "Organizations can enable [ProperNoun] to [verb]"
     .replace(/Organizations ([A-Z][a-z]+) to ([^.!?]+)/gi, 'Organizations can enable $1 to $2')
-    // Fix standalone "Organizations [lowercase]" at start of sentence
-    .replace(/(^|\.\s+)Organizations ([a-z])/gm, (match, prefix, letter) => `${prefix}Organizations can ${letter}`);
+    .replace(/(^|\.\s+)Organizations ([a-z])/gm, (match, prefix, letter) => `${prefix}Organizations can ${letter}`)
+    // Remove empty sentences and fragments
+    .replace(/\.\s*\./g, '.')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
   
   return result;
 }
@@ -660,20 +741,38 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
       .trim();
     
     // Structure the blog post with better content
-    // First pass: filter paragraphs
+    // First pass: filter paragraphs - apply all strict filters
     let paragraphs = cleanContent.split(/\n\n+/).filter((p: string) => {
       const trimmed = p.trim();
-      // Filter out very short paragraphs, markdown headings, UI elements, and generic filler
-      // Lowered threshold to 60 characters to extract more quality content from source
       const lowerTrimmed = trimmed.toLowerCase();
-      return trimmed.length > 60 
-        && !trimmed.match(/^##+\s+/) 
-        && !lowerTrimmed.match(/^(save story|share|subscribe|sign up|photograph:|photo-illustration:)/i)
-        && !lowerTrimmed.includes("comment loader")
-        && !lowerTrimmed.includes("save this story")
-        && !lowerTrimmed.includes("getty images")
-        && !lowerTrimmed.includes("wired staff")
-        && !isGenericFiller(trimmed); // Remove generic filler
+      
+      // Must be substantial (at least 60 chars, but prefer longer)
+      if (trimmed.length < 60) return false;
+      
+      // Remove broken paragraphs
+      if (isBrokenParagraph(trimmed)) return false;
+      
+      // Remove markdown headings
+      if (trimmed.match(/^##+\s+/)) return false;
+      
+      // Remove UI elements
+      if (lowerTrimmed.match(/^(save story|share|subscribe|sign up|photograph:|photo-illustration:)/i)) return false;
+      if (lowerTrimmed.includes("comment loader") || lowerTrimmed.includes("save this story") || 
+          lowerTrimmed.includes("getty images") || lowerTrimmed.includes("wired staff")) return false;
+      
+      // Remove generic filler
+      if (isGenericFiller(trimmed)) return false;
+      
+      // Remove paragraphs with quotes
+      if (/"[^"]{20,}"/.test(trimmed) || /\b(said|says|according to|told|stated|quoted|in an interview|in a statement)\b/i.test(trimmed)) return false;
+      
+      // Remove paragraphs with news fragments
+      if (/\b(announced|reported|revealed|in an interview|in a statement)\b/i.test(trimmed)) return false;
+      
+      // Remove newsletter references
+      if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(trimmed)) return false;
+      
+      return true;
     });
     
     // Filter out time-based openings (Rule 1)
@@ -748,39 +847,58 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     function createCleanDefinition(concept: string, sourceParagraphs: string[]): string {
       const conceptLower = concept.toLowerCase();
       const capitalized = concept.charAt(0).toUpperCase() + concept.slice(1);
+      const articleWord = getArticle(concept);
       
-      // Try to find a generic definition paragraph from source
-      for (const p of sourceParagraphs.slice(0, 10)) {
+      // Try to find a clean definition from source (NO company names, NO quotes, NO time refs)
+      for (const p of sourceParagraphs.slice(0, 15)) {
         const lowerP = p.toLowerCase();
-        // Look for definition patterns without company names or dates
-        if ((lowerP.includes("is a") || lowerP.includes("refers to") || lowerP.includes("is an") || 
-             lowerP.includes("represents") || lowerP.includes("enables") || lowerP.includes("is effectively")) &&
-            !lowerP.match(/\b(announced|said|reported|revealed|on (monday|tuesday|wednesday|thursday|friday|saturday|sunday)|this week|recently|yesterday|today)\b/i) &&
-            !countCompanyMentions(p)) {
-          // Clean it up - remove any company names or dates that might have slipped through
-          let clean = p
+        
+        // Must be a definition pattern
+        const isDefinition = lowerP.includes("is a") || lowerP.includes("refers to") || 
+                           lowerP.includes("is an") || lowerP.includes("represents") || 
+                           lowerP.includes("enables") || lowerP.includes("is effectively");
+        
+        // Must NOT have any of these
+        const hasTimeRef = /\b(announced|said|reported|revealed|on (monday|tuesday|wednesday|thursday|friday|saturday|sunday)|this week|recently|yesterday|today|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(p);
+        const hasCompany = countCompanyMentions(p) > 0;
+        const hasQuote = /"[^"]{20,}"/.test(p) || /\b(said|says|according to|told|stated|quoted|in an interview|in a statement)\b/i.test(p);
+        const hasNewsFragment = /\b(announced|reported|revealed|in an interview|in a statement)\b/i.test(p);
+        const hasNewsletter = /\b(subscribe|newsletter|sign up|e-newsletter)\b/i.test(p);
+        
+        if (isDefinition && !hasTimeRef && !hasCompany && !hasQuote && !hasNewsFragment && !hasNewsletter) {
+          // Clean it up
+          let clean = removeQuotes(p);
+          clean = removeNewsFragments(clean);
+          clean = removeNewsletterReferences(clean);
+          clean = clean
             .replace(/\b(on|this|last|next)\s+(monday|tuesday|wednesday|thursday|friday|saturday|sunday|week|month|year)\b/gi, "")
             .replace(/\b(announced|said|reported|revealed)\b/gi, "")
+            .replace(/\s{2,}/g, " ")
             .trim();
           
-          // Ensure it mentions the concept
-          if (clean.toLowerCase().includes(conceptLower) && clean.split(/[.!?]/).length >= 2) {
-            return clean;
+          // Ensure it mentions the concept and is 2-3 sentences
+          const sentences = clean.split(/[.!?]+/).filter(s => s.trim().length > 10);
+          if (clean.toLowerCase().includes(conceptLower) && sentences.length >= 2 && sentences.length <= 3) {
+            // Ensure primary keyword appears once
+            const keywordCount = (clean.toLowerCase().match(new RegExp(conceptLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
+            if (keywordCount >= 1) {
+              return clean;
+            }
           }
         }
       }
       
-      // Fallback: Create a generic definition
+      // Fallback: Create clean definition (2-3 sentences, contains keyword once, no company)
       const definitions: Record<string, string> = {
-        "startup accelerator": `${capitalized} is a program designed to help early-stage companies grow rapidly through mentorship, funding, and networking opportunities. These programs provide structured support to help startups develop their products, reach customers, and scale their operations.`,
-        "ai agent": `An ${capitalized} is an autonomous software system that can perform tasks, make decisions, and interact with users or other systems using artificial intelligence. These agents can understand natural language, process information, and execute actions based on their programming and learning capabilities.`,
-        "ai software": `${capitalized} refers to applications and platforms that use artificial intelligence to automate tasks, analyze data, and provide intelligent insights. This technology enables businesses to improve efficiency, make data-driven decisions, and enhance user experiences through machine learning and automation.`,
-        "digital transformation": `${capitalized} is the process of integrating digital technology into all areas of a business to fundamentally change how it operates and delivers value to customers. This involves rethinking business models, processes, and customer engagement strategies using modern technology solutions.`,
-        "workforce automation": `${capitalized} involves using technology to automate repetitive tasks and processes traditionally performed by human workers. This approach helps organizations improve efficiency, reduce errors, and allow employees to focus on more strategic and creative work.`,
-        "app development": `${capitalized} is the process of creating software applications for mobile devices, web browsers, or desktop platforms. This involves designing user interfaces, writing code, testing functionality, and deploying applications to make them available to users.`,
+        "startup accelerator": `${articleWord.charAt(0).toUpperCase() + articleWord.slice(1)} ${capitalized} is a program designed to help early-stage companies grow rapidly through mentorship, funding, and networking opportunities. These programs provide structured support to help startups develop their products, reach customers, and scale their operations. The accelerator model has become a standard approach for supporting innovation and entrepreneurship in technology sectors.`,
+        "ai agent": `An ${capitalized} is an autonomous software system that can perform tasks, make decisions, and interact with users or other systems using artificial intelligence. These agents can understand natural language, process information, and execute actions based on their programming and learning capabilities. ${capitalized} technology enables organizations to automate complex workflows and handle tasks that previously required human intervention.`,
+        "ai software": `${capitalized} refers to applications and platforms that use artificial intelligence to automate tasks, analyze data, and provide intelligent insights. This technology enables businesses to improve efficiency, make data-driven decisions, and enhance user experiences through machine learning and automation. Organizations across industries are adopting ${conceptLower} solutions to streamline operations and gain competitive advantages.`,
+        "digital transformation": `${capitalized} is the process of integrating digital technology into all areas of a business to fundamentally change how it operates and delivers value to customers. This involves rethinking business models, processes, and customer engagement strategies using modern technology solutions. Successful ${conceptLower} initiatives require strategic planning, organizational change, and investment in digital infrastructure.`,
+        "workforce automation": `${capitalized} involves using technology to automate repetitive tasks and processes traditionally performed by human workers. This approach helps organizations improve efficiency, reduce errors, and allow employees to focus on more strategic and creative work. Automation technologies can handle routine operations while enabling human workers to concentrate on complex problem-solving and innovation.`,
+        "app development": `${capitalized} is the process of creating software applications for mobile devices, web browsers, or desktop platforms. This involves designing user interfaces, writing code, testing functionality, and deploying applications to make them available to users. Modern ${conceptLower} practices emphasize user experience, performance optimization, and cross-platform compatibility.`,
       };
       
-      return definitions[conceptLower] || `${capitalized} is a technology or business approach that helps organizations achieve their goals more effectively. This concept involves strategic implementation and careful planning to deliver value and improve outcomes.`;
+      return definitions[conceptLower] || `${capitalized} is a technology or business approach that helps organizations achieve their goals more effectively. This concept involves strategic implementation and careful planning to deliver value and improve outcomes. Understanding ${conceptLower} principles is essential for organizations seeking to modernize their operations.`;
     }
     
     const firstParagraph = createCleanDefinition(coreConcept, paragraphs);
@@ -825,15 +943,29 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     }
     
     // Add example paragraphs after, clearly labeled with plain text
+    // Rule: Max 2-3 sentences total for company examples
     if (exampleParagraphs.length > 0) {
       blogSections.push("", "Example:");
-      for (const p of exampleParagraphs.slice(0, 2)) {
+      let exampleSentenceCount = 0;
+      const maxExampleSentences = 3;
+      
+      for (const p of exampleParagraphs) {
+        if (exampleSentenceCount >= maxExampleSentences) break;
+        
         const fingerprint = getParagraphFingerprint(p);
-        if (!addedParagraphFingerprints.has(fingerprint)) {
-          blogSections.push(p);
+        if (addedParagraphFingerprints.has(fingerprint)) continue;
+        
+        const sentences = p.split(/[.!?]+/).filter(s => s.trim().length > 10);
+        const sentencesToAdd = Math.min(sentences.length, maxExampleSentences - exampleSentenceCount);
+        
+        if (sentencesToAdd > 0) {
+          // Take only the needed sentences
+          const trimmedParagraph = sentences.slice(0, sentencesToAdd).join(". ") + ".";
+          blogSections.push(trimmedParagraph);
           addedParagraphFingerprints.add(fingerprint);
-          totalWords += p.split(/\s+/).length;
-          companyMentionWords += (countCompanyMentions(p) * 10);
+          totalWords += trimmedParagraph.split(/\s+/).length;
+          companyMentionWords += (countCompanyMentions(trimmedParagraph) * 10);
+          exampleSentenceCount += sentencesToAdd;
           paraIndex++;
         }
       }
@@ -842,98 +974,60 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Generate topic-specific headings (SEO-optimized, not generic)
     const headings = generateTopicSpecificHeadings(coreConcept, item.title, sourceContent);
     
-    // Section 2: Market/Strategic Context (topic-specific, not "Why It Matters")
-    blogSections.push("", `## ${headings.section2}`);
-    const whyCount = Math.min(2, paragraphs.length - paraIndex);
-    for (let i = 0; i < whyCount && paraIndex < paragraphs.length; i++) {
-      const p = paragraphs[paraIndex++];
-      if (isGenericFiller(p)) continue;
-      const fingerprint = getParagraphFingerprint(p);
-      if (!addedParagraphFingerprints.has(fingerprint)) {
-        blogSections.push(p);
+    // Helper function to add paragraphs to a section ensuring minimum 2 paragraphs and 120 words
+    function addSectionWithMinimums(sectionHeading: string, minParagraphs: number = 2, minWords: number = 120): void {
+      blogSections.push("", sectionHeading);
+      const sectionStartIndex = blogSections.length;
+      const sectionParagraphs: string[] = [];
+      let sectionWordCount = 0;
+      
+      // Add paragraphs until we meet minimums
+      while ((sectionParagraphs.length < minParagraphs || sectionWordCount < minWords) && paraIndex < paragraphs.length) {
+        const p = paragraphs[paraIndex++];
+        if (isGenericFiller(p) || isBrokenParagraph(p)) continue;
+        if (/"[^"]{20,}"/.test(p) || /\b(said|says|according to|told|stated|quoted|in an interview)\b/i.test(p)) continue;
+        if (/\b(announced|reported|revealed|in an interview|in a statement)\b/i.test(p)) continue;
+        if (/\b(subscribe|newsletter|sign up|e-newsletter)\b/i.test(p)) continue;
+        
+        const fingerprint = getParagraphFingerprint(p);
+        if (addedParagraphFingerprints.has(fingerprint)) continue;
+        
+        sectionParagraphs.push(p);
         addedParagraphFingerprints.add(fingerprint);
+        sectionWordCount += p.split(/\s+/).length;
         totalWords += p.split(/\s+/).length;
         companyMentionWords += (countCompanyMentions(p) * 10);
       }
+      
+      // Add paragraphs to blog sections
+      sectionParagraphs.forEach(p => blogSections.push(p));
+      
+      // Warn if section doesn't meet minimums
+      if (sectionParagraphs.length < minParagraphs || sectionWordCount < minWords) {
+        console.warn(`[Code] Section "${sectionHeading}" has only ${sectionParagraphs.length} paragraphs and ${sectionWordCount} words (min: ${minParagraphs} paragraphs, ${minWords} words)`);
+      }
     }
+    
+    // Section 2: Market/Strategic Context (topic-specific, not "Why It Matters")
+    addSectionWithMinimums(`## ${headings.section2}`, 2, 120);
     
     // Section 3: Operational Mechanics (topic-specific, not "How It Works")
-    blogSections.push("", `## ${headings.section3}`);
-    const howCount = Math.min(3, paragraphs.length - paraIndex);
-    for (let i = 0; i < howCount && paraIndex < paragraphs.length; i++) {
-      const p = paragraphs[paraIndex++];
-      if (isGenericFiller(p)) continue;
-      const fingerprint = getParagraphFingerprint(p);
-      if (!addedParagraphFingerprints.has(fingerprint)) {
-        blogSections.push(p);
-        addedParagraphFingerprints.add(fingerprint);
-        totalWords += p.split(/\s+/).length;
-        companyMentionWords += (countCompanyMentions(p) * 10);
-      }
-    }
+    addSectionWithMinimums(`## ${headings.section3}`, 2, 120);
     
     // Section 4: Benefits & Trade-Offs (topic-specific)
-    blogSections.push("", `## ${headings.section4}`);
-    const risksCount = Math.min(2, paragraphs.length - paraIndex);
-    for (let i = 0; i < risksCount && paraIndex < paragraphs.length; i++) {
-      const p = paragraphs[paraIndex++];
-      if (isGenericFiller(p)) continue;
-      const fingerprint = getParagraphFingerprint(p);
-      if (!addedParagraphFingerprints.has(fingerprint)) {
-        blogSections.push(p);
-        addedParagraphFingerprints.add(fingerprint);
-        totalWords += p.split(/\s+/).length;
-        companyMentionWords += (countCompanyMentions(p) * 10);
-      }
-    }
+    addSectionWithMinimums(`## ${headings.section4}`, 2, 120);
     
     // Section 5: Business Response (topic-specific, not "Implementation and Evaluation")
-    blogSections.push("", `## ${headings.section5}`);
-    const implCount = Math.min(3, paragraphs.length - paraIndex);
-    for (let i = 0; i < implCount && paraIndex < paragraphs.length; i++) {
-      const p = paragraphs[paraIndex++];
-      if (isGenericFiller(p)) continue;
-      const fingerprint = getParagraphFingerprint(p);
-      if (!addedParagraphFingerprints.has(fingerprint)) {
-        blogSections.push(p);
-        addedParagraphFingerprints.add(fingerprint);
-        totalWords += p.split(/\s+/).length;
-        companyMentionWords += (countCompanyMentions(p) * 10);
-      }
-    }
+    addSectionWithMinimums(`## ${headings.section5}`, 2, 120);
     
     // Section 6: Industry Impact (topic-specific, optional if we have content)
     if (paraIndex < paragraphs.length) {
-      blogSections.push("", `## ${headings.section6}`);
-      const impactCount = Math.min(2, paragraphs.length - paraIndex);
-      for (let i = 0; i < impactCount && paraIndex < paragraphs.length; i++) {
-        const p = paragraphs[paraIndex++];
-        if (isGenericFiller(p)) continue;
-        const fingerprint = getParagraphFingerprint(p);
-        if (!addedParagraphFingerprints.has(fingerprint)) {
-          blogSections.push(p);
-          addedParagraphFingerprints.add(fingerprint);
-          totalWords += p.split(/\s+/).length;
-          companyMentionWords += (countCompanyMentions(p) * 10);
-        }
-      }
+      addSectionWithMinimums(`## ${headings.section6}`, 2, 120);
     }
     
     // Section 7: Future Outlook (optional, if we have content)
     if (paraIndex < paragraphs.length) {
-      blogSections.push("", "## Future Outlook");
-      const futureCount = Math.min(2, paragraphs.length - paraIndex);
-      for (let i = 0; i < futureCount && paraIndex < paragraphs.length; i++) {
-        const p = paragraphs[paraIndex++];
-        if (isGenericFiller(p)) continue;
-        const fingerprint = getParagraphFingerprint(p);
-        if (!addedParagraphFingerprints.has(fingerprint)) {
-          blogSections.push(p);
-          addedParagraphFingerprints.add(fingerprint);
-          totalWords += p.split(/\s+/).length;
-          companyMentionWords += (countCompanyMentions(p) * 10);
-        }
-      }
+      addSectionWithMinimums("## Future Outlook", 2, 120);
     }
     
     // Check company mention limit (Rule 3 - max 15%)
@@ -946,8 +1040,10 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     let wordCount = blogContent.split(/\s+/).length;
 
     // If content is too short, expand it by adding more analysis and context
-    // Target: 800 words minimum (practical for SEO without being too restrictive)
-    if (wordCount < 800) {
+    // Target: 1200-1500 words minimum for SEO
+    const targetMinWords = 1200;
+    const targetMaxWords = 1500;
+    if (wordCount < targetMinWords) {
       const sections = blogContent.split(/\n\n+/);
       
       // Add more paragraphs from source if available
@@ -980,7 +1076,7 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         });
         
         let currentWordCount = wordCount;
-        const targetWords = 800;
+        const targetWords = targetMinWords;
         
         // Strategy 1: Use ALL remaining source paragraphs (prioritize source content over filler)
         if (currentWordCount < targetWords) {
