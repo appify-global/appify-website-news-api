@@ -16,6 +16,7 @@ import { parseContentBlocks, generateSlug, generateExcerpt } from "../services/c
 import { validateArticleContent } from "../services/contentValidator";
 import { prisma } from "../lib/prisma";
 import slugify from "slugify";
+import { adjustContentForValidation } from "../services/preValidationAdjuster";
 
 /**
  * Generation Mode Selection:
@@ -150,6 +151,10 @@ export async function generateArticles(): Promise<void> {
         ? await optimizeForSEO(rawBlog, item.categories, item.title)
         : await optimizeForSEO(rawBlog);
 
+      // Step 3.5: Pre-validation adjustment - ensure content passes validation
+      const primaryKeyword = seoResult.primaryKeyword;
+      seoResult.optimizedContent = adjustContentForValidation(seoResult.optimizedContent, primaryKeyword);
+
       // Step 4: Convert to clean HTML (OpenAI or Code)
       const htmlContent = await convertToHTML(seoResult.optimizedContent);
 
@@ -166,9 +171,6 @@ export async function generateArticles(): Promise<void> {
       const slug = generateSlug(blogTitle); // Use generated title for slug
       
       // Step 7.5: Strict quality validation before publishing
-      // Use primary keyword from SEO result (already identified by optimizer)
-      const primaryKeyword = seoResult.primaryKeyword;
-      
       const validation = validateArticleContent(
         seoResult.optimizedContent,
         contentBlocks,
