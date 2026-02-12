@@ -199,16 +199,40 @@ function extractKeyConcepts(content: string, title: string): string[] {
  * Filter out time-based openings and news-style starts
  */
 /**
- * Remove quotes and attributions from content
+ * Normalize quotes safely without breaking sentences
+ * Converts curly quotes, removes attribution fragments, but keeps sentences intact
  */
-function removeQuotes(content: string): string {
-  return content
-    .replace(/"[^"]{20,}"/g, '') // Remove long quotes
-    .replace(/(said|says|according to|told|stated|quoted|in an interview|in a statement|told [^.!?]+)[^.!?]*[.!?]/gi, '')
-    .replace(/\([^)]*said[^)]*\)/gi, '')
-    .replace(/\[[^\]]*\]/g, '') // Remove brackets with quotes
-    .replace(/"[^"]+"/g, '') // Remove any remaining quotes
+function normalizeQuotes(content: string): string {
+  let result = content;
+  
+  // Step 1: Convert curly quotes to plain quotes
+  result = result
+    .replace(/[""]/g, '"')  // Left double quote
+    .replace(/[""]/g, '"')  // Right double quote
+    .replace(/['']/g, "'")  // Left single quote
+    .replace(/['']/g, "'"); // Right single quote
+  
+  // Step 2: Remove dangling attribution fragments WITHOUT deleting full sentences
+  // Remove standalone attribution phrases that appear at sentence boundaries
+  result = result
+    .replace(/\s+(said|says|according to|told|stated|quoted|in an interview|in a statement)\s*[.!?]/gi, '.')
+    .replace(/\([^)]*\b(said|says|according to|told|stated|quoted)\b[^)]*\)/gi, '') // Remove parenthetical attributions
+    .replace(/\[[^\]]*\b(said|says|according to|told|stated|quoted)\b[^\]]*\]/gi, ''); // Remove bracketed attributions
+  
+  // Step 3: If a sentence contains a quote, keep the sentence but remove quote marks only
+  // Don't remove the entire quoted content, just clean up the marks
+  result = result
+    .replace(/"([^"]{10,})"/g, '$1') // Remove quote marks but keep content (min 10 chars to avoid removing single words)
+    .replace(/'([^']{10,})'/g, '$1'); // Same for single quotes
+  
+  // Step 4: Clean up any double spaces or punctuation artifacts
+  result = result
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\.\s*\./g, '.')
+    .replace(/,\s*,/g, ',')
     .trim();
+  
+  return result;
 }
 
 /**
@@ -357,16 +381,17 @@ function isGenericFiller(paragraph: string): boolean {
 
 /**
  * Check if paragraph is too short or broken
+ * Only flag truly broken content (< 25 chars or no sentence structure)
  */
 function isBrokenParagraph(paragraph: string): boolean {
   const trimmed = paragraph.trim();
-  // Too short
-  if (trimmed.length < 50) return true;
-  // Incomplete sentence (no ending punctuation)
-  const sentences = trimmed.split(/[.!?]+/).filter(s => s.trim().length > 10);
-  if (sentences.length === 0) return true;
-  // Fragment (starts with lowercase or is just a few words)
-  if (trimmed.split(/\s+/).length < 8) return true;
+  // Only flag if extremely short (< 25 characters)
+  if (trimmed.length < 25) return true;
+  
+  // Check if it has at least one sentence (ends with punctuation)
+  const hasSentenceEnd = /[.!?]\s*$/.test(trimmed);
+  if (!hasSentenceEnd && trimmed.split(/\s+/).length < 5) return true; // Very short fragment
+  
   return false;
 }
 
@@ -534,8 +559,8 @@ function makeContentEvergreen(content: string): string {
     .replace(/\b(\d+)\s*percent\b/gi, '$1%') // Normalize "95 percent" to "95%"
     .replace(/\b(\d+)\s*%\b/g, '$1%'); // Normalize spacing
   
-  // Step 1: Remove quotes and attributions
-  result = removeQuotes(result);
+  // Step 1: Normalize quotes (non-destructive)
+  result = normalizeQuotes(result);
   
   // Step 2: Remove news fragments
   result = removeNewsFragments(result);
@@ -749,36 +774,26 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
       .trim();
     
     // Structure the blog post with better content
-    // First pass: filter paragraphs - apply all strict filters
+    // First pass: filter paragraphs - only exclude clear junk
     let paragraphs = cleanContent.split(/\n\n+/).filter((p: string) => {
       const trimmed = p.trim();
       const lowerTrimmed = trimmed.toLowerCase();
       
-      // Must be substantial (at least 60 chars, but prefer longer)
-      if (trimmed.length < 60) return false;
-      
-      // Remove broken paragraphs
-      if (isBrokenParagraph(trimmed)) return false;
+      // Must be substantial (at least 25 chars)
+      if (trimmed.length < 25) return false;
       
       // Remove markdown headings
       if (trimmed.match(/^##+\s+/)) return false;
       
-      // Remove UI elements
+      // Remove UI elements and promotional boilerplate only
       if (lowerTrimmed.match(/^(save story|share|subscribe|sign up|photograph:|photo-illustration:)/i)) return false;
       if (lowerTrimmed.includes("comment loader") || lowerTrimmed.includes("save this story") || 
           lowerTrimmed.includes("getty images") || lowerTrimmed.includes("wired staff")) return false;
       
-      // Remove generic filler
-      if (isGenericFiller(trimmed)) return false;
+      // Remove newsletter/promotional references
+      if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation|join our)\b/i.test(trimmed)) return false;
       
-      // Remove paragraphs with quotes
-      if (/"[^"]{20,}"/.test(trimmed) || /\b(said|says|according to|told|stated|quoted|in an interview|in a statement)\b/i.test(trimmed)) return false;
-      
-      // Remove paragraphs with news fragments
-      if (/\b(announced|reported|revealed|in an interview|in a statement)\b/i.test(trimmed)) return false;
-      
-      // Remove newsletter references
-      if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(trimmed)) return false;
+      // Don't filter based on quotes, news fragments, or generic filler - use the content!
       
       return true;
     });
@@ -875,7 +890,7 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         
         if (isDefinition && !hasTimeRef && !hasCompany && !hasQuote && !hasNewsFragment && !hasNewsletter) {
           // Clean it up
-          let clean = removeQuotes(p);
+          let clean = normalizeQuotes(p);
           clean = removeNewsFragments(clean);
           clean = removeNewsletterReferences(clean);
           clean = clean
@@ -885,7 +900,7 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
             .trim();
           
           // Ensure it mentions the concept and is 2-3 sentences
-          const sentences = clean.split(/[.!?]+/).filter(s => s.trim().length > 10);
+          const sentences = clean.split(/[.!?]+/).filter((s: string) => s.trim().length > 10);
           if (clean.toLowerCase().includes(conceptLower) && sentences.length >= 2 && sentences.length <= 3) {
             // Ensure primary keyword appears once
             const keywordCount = (clean.toLowerCase().match(new RegExp(conceptLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
@@ -984,34 +999,23 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     
     // Helper function to add paragraphs to a section ensuring minimum 2 paragraphs and 120 words
     function addSectionWithMinimums(sectionHeading: string, minParagraphs: number = 2, minWords: number = 120, required: boolean = true): boolean {
-      // First, try to collect paragraphs before adding the heading
       const sectionParagraphs: string[] = [];
       let sectionWordCount = 0;
       let tempParaIndex = paraIndex;
       let attempts = 0;
-      const maxAttempts = paragraphs.length * 5; // Prevent infinite loop, but allow more attempts
+      const maxAttempts = paragraphs.length * 5;
       
-      // Collect paragraphs until we meet minimums - be LESS strict overall
+      // First pass: Try to collect paragraphs with minimal filtering
       while ((sectionParagraphs.length < minParagraphs || sectionWordCount < minWords) && tempParaIndex < paragraphs.length && attempts < maxAttempts) {
         attempts++;
         const p = paragraphs[tempParaIndex++];
         
-        // Only skip if it's clearly broken or generic filler
-        if (isGenericFiller(p) || isBrokenParagraph(p)) continue;
+        // Only exclude clear junk - be very lenient
+        if (isBrokenParagraph(p)) continue; // Only skip if truly broken (< 25 chars or no sentences)
+        if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation|join our|sign up for)\b/i.test(p)) continue; // Newsletter/promotional only
+        if (p.trim().length < 25) continue; // Extremely short
         
-        // Skip newsletter references (always)
-        if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(p)) continue;
-        
-        // Only filter quotes/news fragments if we have LOTS of content remaining
-        const remainingParagraphs = paragraphs.length - tempParaIndex;
-        const hasLotsOfContent = remainingParagraphs > 30;
-        
-        if (hasLotsOfContent) {
-          // Only then be strict about quotes and news fragments
-          if (/"[^"]{30,}"/.test(p)) continue; // Only skip very long quotes
-          if (/\b(in an interview|in a statement|according to sources)\b/i.test(p)) continue; // Skip obvious attribution phrases
-        }
-        // Otherwise, be lenient - use the content!
+        // Don't filter based on quotes or news fragments - use the content!
         
         const fingerprint = getParagraphFingerprint(p);
         if (addedParagraphFingerprints.has(fingerprint)) continue;
@@ -1020,23 +1024,26 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         sectionWordCount += p.split(/\s+/).length;
       }
       
-      // If we still don't have enough and it's required, be VERY lenient
+      // If required section and still not enough, be VERY lenient - use ANY non-junk paragraph
       if (sectionParagraphs.length < minParagraphs && required) {
         tempParaIndex = paraIndex; // Start from current position
         while (tempParaIndex < paragraphs.length && sectionParagraphs.length < minParagraphs) {
           const p = paragraphs[tempParaIndex++];
-          // Only skip if it's clearly broken or newsletter
-          if (isBrokenParagraph(p)) continue;
-          if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(p)) continue;
+          
+          // Only skip absolute junk
+          if (p.trim().length < 25) continue; // Extremely short
+          if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(p)) continue; // Newsletter only
+          
           const fingerprint = getParagraphFingerprint(p);
           if (addedParagraphFingerprints.has(fingerprint)) continue;
+          
           sectionParagraphs.push(p);
           sectionWordCount += p.split(/\s+/).length;
         }
       }
       
-      // If we have content, add the section
-      if (sectionParagraphs.length > 0) {
+      // For required sections, ALWAYS add them even if below minimums (better than empty)
+      if (required || sectionParagraphs.length > 0) {
         blogSections.push("", sectionHeading);
         sectionParagraphs.forEach(p => {
           blogSections.push(p);
@@ -1044,20 +1051,15 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
           totalWords += p.split(/\s+/).length;
           companyMentionWords += (countCompanyMentions(p) * 10);
         });
-        paraIndex = tempParaIndex; // Update the global index
+        paraIndex = tempParaIndex;
         
-        // Warn if section doesn't meet minimums
         if (sectionParagraphs.length < minParagraphs || sectionWordCount < minWords) {
           console.warn(`[Code] Section "${sectionHeading}" has only ${sectionParagraphs.length} paragraphs and ${sectionWordCount} words (min: ${minParagraphs} paragraphs, ${minWords} words)`);
         }
         return true;
-      } else {
-        // No content found, don't add the section
-        if (required) {
-          console.warn(`[Code] Could not find content for required section "${sectionHeading}" - skipping to avoid empty section`);
-        }
-        return false;
       }
+      
+      return false;
     }
     
     // Section 2: Market/Strategic Context (topic-specific, not "Why It Matters")
@@ -1095,24 +1097,106 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Target: 1200-1500 words minimum for SEO
     const targetMinWords = 1200;
     const targetMaxWords = 1500;
+    
+    /**
+     * Merge thin sections (below minimums) with adjacent sections to avoid empty headings
+     */
+    function mergeSectionsIfThin(sections: string[]): string[] {
+      const merged: string[] = [];
+      let i = 0;
+      
+      while (i < sections.length) {
+        const current = sections[i];
+        
+        // Check if this is a heading
+        if (current.trim().startsWith("##")) {
+          const heading = current.trim();
+          const headingIndex = i;
+          const sectionContent: string[] = [];
+          let sectionWordCount = 0;
+          let j = i + 1;
+          
+          // Collect content until next heading
+          while (j < sections.length && !sections[j].trim().startsWith("##")) {
+            const para = sections[j].trim();
+            if (para && para.length > 25) {
+              sectionContent.push(para);
+              sectionWordCount += para.split(/\s+/).length;
+            }
+            j++;
+          }
+          
+          // Check if section is thin (below minimums)
+          const isThin = sectionContent.length < 2 || sectionWordCount < 120;
+          
+          if (isThin && merged.length > 0) {
+            // Merge with previous section instead of adding heading
+            console.warn(`[Code] Merging thin section "${heading}" with previous section`);
+            sectionContent.forEach(p => merged.push(p));
+            i = j; // Skip to next section
+            continue;
+          } else {
+            // Add heading and content
+            merged.push(heading);
+            sectionContent.forEach(p => merged.push(p));
+            i = j;
+            continue;
+          }
+        } else {
+          // Regular paragraph, add it
+          merged.push(current);
+          i++;
+        }
+      }
+      
+      return merged;
+    }
+    
     if (wordCount < targetMinWords) {
-      const sections = blogContent.split(/\n\n+/);
+      let sections = blogContent.split(/\n\n+/);
       
       // Add more paragraphs from source if available
-      if (paragraphs.length > 33) {
-        const additionalParagraphs = paragraphs.slice(33, Math.min(50, paragraphs.length));
+      if (paragraphs.length > paraIndex) {
+        const additionalParagraphs = paragraphs.slice(paraIndex);
         if (additionalParagraphs.length > 0) {
-          const conclusionIndex = sections.findIndex(s => s.trim().startsWith("## Summary") || s.trim().startsWith("## Conclusion"));
-          if (conclusionIndex > 0) {
-            sections.splice(conclusionIndex, 0, "", ...additionalParagraphs);
+          const conclusionIndex = sections.findIndex(s => s.trim().startsWith("## Summary") || s.trim().startsWith("## Conclusion") || s.trim().startsWith("## Future Outlook"));
+          const insertIndex = conclusionIndex > 0 ? conclusionIndex : sections.length;
+          
+          // Filter and add unused paragraphs
+          const existingFingerprints = new Set<string>();
+          sections.forEach(s => {
+            if (s.trim() && !s.trim().startsWith("##")) {
+              existingFingerprints.add(getParagraphFingerprint(s.trim()));
+            }
+          });
+          
+          const newParagraphs = additionalParagraphs.filter(p => {
+            if (isBrokenParagraph(p)) return false;
+            if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(p)) return false;
+            const fingerprint = getParagraphFingerprint(p);
+            if (existingFingerprints.has(fingerprint)) return false;
+            existingFingerprints.add(fingerprint);
+            return true;
+          });
+          
+          if (newParagraphs.length > 0) {
+            sections.splice(insertIndex, 0, "", ...newParagraphs);
             blogContent = sections.join("\n\n");
             wordCount = blogContent.split(/\s+/).length;
           }
         }
       }
       
-      // If still short, aggressively expand using rephrasing and contextual analysis
-      if (wordCount < 800) {
+      // Merge thin sections to avoid empty headings
+      if (wordCount < targetMinWords) {
+        sections = blogContent.split(/\n\n+/);
+        const merged = mergeSectionsIfThin(sections);
+        blogContent = merged.join("\n\n");
+        wordCount = blogContent.split(/\s+/).length;
+      }
+      
+      // If still short, use ALL remaining source paragraphs
+      if (wordCount < targetMinWords) {
         // Find a good place to insert additional content (before conclusion, or at end if no conclusion)
         let insertIndex = sections.findIndex(s => s.trim().startsWith("## Summary") || s.trim().startsWith("## Conclusion") || s.trim().startsWith("## Strategic Outlook"));
         if (insertIndex < 0) {
