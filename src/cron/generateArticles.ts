@@ -20,13 +20,13 @@ import slugify from "slugify";
 /**
  * Generation Mode Selection:
  * 
- * Set USE_CODE_GENERATION=true to use code-based generation (no OpenAI required)
- * Leave unset or set to false to use OpenAI (default, requires OPENAI_API_KEY)
+ * DEFAULT: Code-based generation (no OpenAI required)
+ * Set USE_OPENAI=true to use OpenAI generation (requires OPENAI_API_KEY)
  * 
- * OpenAI version: Higher quality, more creative, requires API key
- * Code version: Faster, no API costs, uses RSS content extraction
+ * Code version: Faster, no API costs, uses RSS content extraction (DEFAULT)
+ * OpenAI version: Higher quality, more creative, requires API key (OPTIONAL)
  */
-const USE_CODE_GENERATION = process.env.USE_CODE_GENERATION === "true";
+const USE_CODE_GENERATION = process.env.USE_OPENAI !== "true"; // Default to code-based, only use OpenAI if explicitly enabled
 
 // Select functions based on environment variable
 // Both versions are available - just switch the flag to toggle
@@ -37,10 +37,11 @@ const generateBlogTitle = USE_CODE_GENERATION ? generateBlogTitleCode : generate
 const generateMetaDescription = USE_CODE_GENERATION ? generateMetaDescriptionCode : generateMetaDescriptionOpenAI;
 
 /**
- * Full pipeline: RSS → (OpenAI or Code) → (OpenAI or Code) → (OpenAI or Code) → (OpenAI or Code) → (OpenAI or Code) → Grok (Image) → Parse → Save
+ * Full pipeline: RSS → Code-based generation → SEO optimization → HTML conversion → Title/Description → Image → Parse → Save
  * This replaces the entire Make.com automation flow.
  * 
- * Set USE_CODE_GENERATION=true to use code-based generation instead of OpenAI.
+ * Uses code-based generation by default (no OpenAI required).
+ * Set USE_OPENAI=true to use OpenAI generation instead (requires OPENAI_API_KEY).
  */
 export async function generateArticles(): Promise<void> {
   const maxArticles = parseInt(process.env.MAX_ARTICLES_PER_RUN || "3");
