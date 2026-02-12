@@ -10,8 +10,9 @@ interface SEOResult {
   topics: string;
 }
 
-// Common keywords for app development content
-const KEYWORDS = [
+// Comprehensive keyword list for SEO dominance (15-20 keywords)
+// Primary keywords (high volume, competitive)
+const PRIMARY_KEYWORDS = [
   "app development",
   "AI app development",
   "mobile app developers",
@@ -21,6 +22,27 @@ const KEYWORDS = [
   "digital transformation",
   "mobile applications",
 ];
+
+// Long-tail keywords (lower volume, easier to rank)
+const LONG_TAIL_KEYWORDS = [
+  "how to build AI apps in Australia",
+  "what is AI app development",
+  "AI app development vs traditional app development",
+  "best AI app developers Melbourne",
+  "custom mobile app development services",
+  "enterprise app development solutions",
+  "AI-powered mobile applications",
+  "app development for startups",
+  "digital transformation through apps",
+  "how does AI app development work",
+  "what are the benefits of AI in app development",
+  "when should you use AI in mobile apps",
+  "AI app developers Sydney",
+  "app development company Melbourne",
+];
+
+// Combine all keywords
+const KEYWORDS = [...PRIMARY_KEYWORDS, ...LONG_TAIL_KEYWORDS];
 
 // Internal links mapping
 const INTERNAL_LINKS: Record<string, string> = {
@@ -44,28 +66,103 @@ function extractKeywords(content: string): string[] {
     }
   }
 
-  return found.slice(0, 5); // Return top 5 keywords
+  return found.slice(0, 20); // Return up to 20 keywords (primary + long-tail)
 }
 
 /**
- * Add internal links to content
+ * Add strategic internal links to content (8-12 links for SEO)
  */
 function addInternalLinks(content: string): string {
   let optimized = content;
+  let linkCount = 0;
+  const maxLinks = 12; // Target 8-12 links
 
-  // Add internal links based on keywords found
-  if (optimized.toLowerCase().includes("automation")) {
+  // Track which links we've added to avoid duplicates
+  const addedLinks = new Set<string>();
+
+  // Add internal links based on keywords found (strategic placement)
+  // Only add first occurrence of each link type to avoid over-optimization
+  
+  if (optimized.toLowerCase().includes("automation") && !addedLinks.has("automation") && linkCount < maxLinks) {
     optimized = optimized.replace(
-      /automation/gi,
-      '<a href="/automation">automation</a>'
+      /(\bautomation\b)/i,
+      '<a href="/automation">$1</a>'
     );
+    addedLinks.add("automation");
+    linkCount++;
   }
 
-  if (optimized.toLowerCase().includes("software development")) {
+  if (optimized.toLowerCase().includes("software development") && !addedLinks.has("software") && linkCount < maxLinks) {
     optimized = optimized.replace(
-      /software development/gi,
-      '<a href="/projects">software development</a>'
+      /(\bsoftware development\b)/i,
+      '<a href="/projects">$1</a>'
     );
+    addedLinks.add("software");
+    linkCount++;
+  }
+
+  if (optimized.toLowerCase().includes("app development") && !addedLinks.has("app-dev") && linkCount < maxLinks) {
+    optimized = optimized.replace(
+      /(\bapp development\b)/i,
+      '<a href="/projects">$1</a>'
+    );
+    addedLinks.add("app-dev");
+    linkCount++;
+  }
+
+  if (optimized.toLowerCase().includes("seo") && !addedLinks.has("seo") && linkCount < maxLinks) {
+    optimized = optimized.replace(
+      /(\bseo\b)/i,
+      '<a href="/automation/seo">$1</a>'
+    );
+    addedLinks.add("seo");
+    linkCount++;
+  }
+
+  if (optimized.toLowerCase().includes("phone automation") && !addedLinks.has("phone") && linkCount < maxLinks) {
+    optimized = optimized.replace(
+      /(\bphone automation\b)/i,
+      '<a href="/automation/phone">$1</a>'
+    );
+    addedLinks.add("phone");
+    linkCount++;
+  }
+
+  if (optimized.toLowerCase().includes("mobile app") && !addedLinks.has("mobile") && linkCount < maxLinks) {
+    optimized = optimized.replace(
+      /(\bmobile app\b)/i,
+      '<a href="/projects">$1</a>'
+    );
+    addedLinks.add("mobile");
+    linkCount++;
+  }
+
+  if (optimized.toLowerCase().includes("custom software") && !addedLinks.has("custom") && linkCount < maxLinks) {
+    optimized = optimized.replace(
+      /(\bcustom software\b)/i,
+      '<a href="/projects">$1</a>'
+    );
+    addedLinks.add("custom");
+    linkCount++;
+  }
+
+  if (optimized.toLowerCase().includes("digital transformation") && !addedLinks.has("digital") && linkCount < maxLinks) {
+    optimized = optimized.replace(
+      /(\bdigital transformation\b)/i,
+      '<a href="/automation">$1</a>'
+    );
+    addedLinks.add("digital");
+    linkCount++;
+  }
+
+  // Add studio link if relevant
+  if ((optimized.toLowerCase().includes("design") || optimized.toLowerCase().includes("ui") || optimized.toLowerCase().includes("ux")) && !addedLinks.has("studio") && linkCount < maxLinks) {
+    optimized = optimized.replace(
+      /(\b(design|ui|ux)\b)/i,
+      '<a href="/studio">$1</a>'
+    );
+    addedLinks.add("studio");
+    linkCount++;
   }
 
   return optimized;
@@ -225,12 +322,26 @@ export async function optimizeForSEO(
 ): Promise<SEOResult> {
   console.log("[Code] Optimizing content for SEO...");
 
-  // Extract keywords
+  // Extract keywords (targeting 15-20 keywords for SEO dominance)
   const keywords = extractKeywords(blogContent);
   const primaryKeyword = keywords[0] || "app development";
+  
+  // Log keyword strategy
+  console.log(`[Code] Extracted ${keywords.length} keywords (target: 15-20)`);
+  if (keywords.length < 10) {
+    console.warn(`[Code] Warning: Only ${keywords.length} keywords found. Consider expanding keyword coverage.`);
+  }
 
-  // Add internal links
+  // Add strategic internal links (targeting 8-12 links for SEO)
   let optimizedContent = addInternalLinks(blogContent);
+  
+  // Count links added
+  const linkMatches = optimizedContent.match(/<a href="[^"]+">/g);
+  const linkCount = linkMatches ? linkMatches.length : 0;
+  console.log(`[Code] Added ${linkCount} internal links (target: 8-12)`);
+  if (linkCount < 8) {
+    console.warn(`[Code] Warning: Only ${linkCount} internal links added. Consider adding more strategic links.`);
+  }
 
   // Ensure primary keyword appears in first 150 words (but don't add generic text that will become excerpt)
   const words = optimizedContent.split(/\s+/);

@@ -251,11 +251,17 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         && !trimmed.match(/^(Save Story|Share|Subscribe|Sign up|Photograph:)/i);
     });
     
-    // Get more paragraphs for a longer article
-    const introParagraphs = paragraphs.slice(0, 3); // 3 intro paragraphs
-    const bodyParagraphs = paragraphs.slice(3, 8); // 5 body paragraphs
-    const additionalParagraphs = paragraphs.slice(8, 12); // 4 more paragraphs
-    const conclusionParagraphs = paragraphs.slice(12, 15); // 3 conclusion paragraphs
+    // Get more paragraphs for a comprehensive, longer article (targeting 3000-4000 words)
+    // Extract more paragraphs to build depth
+    const introParagraphs = paragraphs.slice(0, 5); // 5 intro paragraphs (300-500 words)
+    const whatIsParagraphs = paragraphs.slice(5, 10); // 5 paragraphs for "What is" section (400-600 words)
+    const whyMattersParagraphs = paragraphs.slice(10, 15); // 5 paragraphs for "Why it matters" (400-600 words)
+    const howWorksParagraphs = paragraphs.slice(15, 22); // 7 paragraphs for "How it works" (500-800 words)
+    const bestPracticesParagraphs = paragraphs.slice(22, 27); // 5 paragraphs for best practices (400-600 words)
+    const caseStudiesParagraphs = paragraphs.slice(27, 32); // 5 paragraphs for case studies (400-600 words)
+    const challengesParagraphs = paragraphs.slice(32, 36); // 4 paragraphs for challenges (300-500 words)
+    const futureParagraphs = paragraphs.slice(36, 39); // 3 paragraphs for future (300-400 words)
+    const conclusionParagraphs = paragraphs.slice(39, 42); // 3 conclusion paragraphs (300-400 words)
     
     // Use RSS title for the main heading, or create a descriptive one
     const mainHeading = item.title || "Latest Technology Developments";
@@ -263,47 +269,93 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Analyze content to generate dynamic headings based on actual article topic
     const contentAnalysis = analyzeContentForHeadings(sourceContent, item.title);
     
-    // Build comprehensive content sections
+    // Build comprehensive content sections for SEO dominance (3000-4000 words)
     const blogSections: string[] = [
       `## ${mainHeading}`,
     ];
     
-    // Introduction section with multiple paragraphs
+    // Introduction section (300-500 words)
+    blogSections.push("", "## Introduction");
     if (introParagraphs.length > 0) {
       blogSections.push(...introParagraphs);
     } else {
-      // Fallback: use RSS content snippet and expand it
       const snippet = item.contentSnippet || item.content || "";
       if (snippet.length > 50) {
         blogSections.push(snippet);
         blogSections.push("This development has significant implications for the technology industry and how businesses approach digital transformation.");
+        blogSections.push("Understanding these changes is crucial for staying ahead in an increasingly competitive technological environment.");
       } else {
         blogSections.push(`The recent developments in ${mainHeading.toLowerCase()} represent a significant shift in the technology landscape.`);
+        blogSections.push("This article provides a comprehensive analysis of what this means for businesses, developers, and the industry as a whole.");
       }
     }
     
-    // Dynamic heading based on content analysis
-    blogSections.push("", `## ${contentAnalysis.mainSectionHeading}`);
-    
-    // Main section with multiple paragraphs
-    if (bodyParagraphs.length > 0) {
-      blogSections.push(...bodyParagraphs);
+    // What is [Topic]? section (400-600 words)
+    blogSections.push("", `## What is ${contentAnalysis.mainSectionHeading}?`);
+    if (whatIsParagraphs.length > 0) {
+      blogSections.push(...whatIsParagraphs);
     } else {
       blogSections.push(contentAnalysis.mainSectionContent[0]);
-      blogSections.push(contentAnalysis.mainSectionContent[1]);
-      blogSections.push(contentAnalysis.mainSectionContent[2]);
+      blogSections.push("This development represents a significant advancement in the technology sector, with far-reaching implications for businesses and consumers alike.");
+      blogSections.push("The integration of new technologies and methodologies is reshaping how organizations operate and compete in the digital marketplace.");
     }
     
-    // Second dynamic section
+    // Why [Topic] Matters section (400-600 words)
+    blogSections.push("", `## Why ${contentAnalysis.mainSectionHeading} Matters`);
+    if (whyMattersParagraphs.length > 0) {
+      blogSections.push(...whyMattersParagraphs);
+    } else {
+      blogSections.push(contentAnalysis.mainSectionContent[1]);
+      blogSections.push("Organizations that adapt quickly to these changes are better positioned to leverage new opportunities and maintain their competitive edge.");
+      blogSections.push("The evolving technology landscape presents both challenges and opportunities for businesses seeking to innovate.");
+    }
+    
+    // How [Topic] Works section (500-800 words)
     if (contentAnalysis.secondSectionHeading) {
-      blogSections.push("", `## ${contentAnalysis.secondSectionHeading}`);
-      
-      if (additionalParagraphs.length > 0) {
-        blogSections.push(...additionalParagraphs);
+      blogSections.push("", `## How ${contentAnalysis.secondSectionHeading} Works`);
+      if (howWorksParagraphs.length > 0) {
+        blogSections.push(...howWorksParagraphs);
       } else {
         blogSections.push(contentAnalysis.secondSectionContent[0]);
         blogSections.push(contentAnalysis.secondSectionContent[1]);
+        blogSections.push("From a technical perspective, this development highlights the importance of staying current with emerging technologies and industry best practices.");
       }
+    }
+    
+    // Best Practices section (400-600 words)
+    blogSections.push("", "## Best Practices and Implementation");
+    if (bestPracticesParagraphs.length > 0) {
+      blogSections.push(...bestPracticesParagraphs);
+    } else {
+      blogSections.push("For businesses looking to leverage these developments, understanding best practices is crucial for successful implementation.");
+      blogSections.push("Organizations should focus on staying current with technological advances and adapting quickly to new opportunities.");
+    }
+    
+    // Case Studies section (400-600 words)
+    blogSections.push("", "## Case Studies and Real-World Examples");
+    if (caseStudiesParagraphs.length > 0) {
+      blogSections.push(...caseStudiesParagraphs);
+    } else {
+      blogSections.push("Real-world examples demonstrate the practical applications and benefits of these technological developments.");
+      blogSections.push("Companies that have successfully implemented these solutions have seen measurable improvements in efficiency and competitive positioning.");
+    }
+    
+    // Common Challenges section (300-500 words)
+    blogSections.push("", "## Common Challenges and Solutions");
+    if (challengesParagraphs.length > 0) {
+      blogSections.push(...challengesParagraphs);
+    } else {
+      blogSections.push("While these developments offer significant opportunities, organizations may face challenges during implementation.");
+      blogSections.push("Understanding common pitfalls and having a clear strategy can help businesses navigate these challenges successfully.");
+    }
+    
+    // Future of [Topic] section (300-400 words)
+    blogSections.push("", `## Future of ${contentAnalysis.mainSectionHeading}`);
+    if (futureParagraphs.length > 0) {
+      blogSections.push(...futureParagraphs);
+    } else {
+      blogSections.push("Looking ahead, these developments point to an evolving landscape that will continue to shape the technology industry.");
+      blogSections.push("Organizations that embrace innovation and adapt to new technologies will be best positioned for long-term success.");
     }
     
     // App Development implications (only if relevant)
@@ -314,9 +366,8 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
       blogSections.push(contentAnalysis.appDevContent[2]);
     }
     
+    // Conclusion section (300-400 words)
     blogSections.push("", "## Conclusion");
-    
-    // Conclusion with multiple paragraphs
     if (conclusionParagraphs.length > 0) {
       blogSections.push(...conclusionParagraphs);
     } else {
@@ -340,13 +391,13 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Analyze content for dynamic headings
     const contentAnalysis = analyzeContentForHeadings(fallbackContent, item.title);
     
-    // Extract paragraphs from RSS content if available
+    // Extract more paragraphs from RSS content for comprehensive article
     const rssParagraphs = (item.contentSnippet || item.content || "")
       .replace(/<[^>]+>/g, " ") // Remove HTML tags
       .split(/\n\n+/)
       .map((p: string) => p.trim())
       .filter((p: string) => p.length > 100)
-      .slice(0, 10);
+      .slice(0, 40); // Extract up to 40 paragraphs for longer content
     
     const blogSections: string[] = [
       `## ${mainHeading}`,
