@@ -108,11 +108,19 @@ function makeContentEvergreen(content: string): string {
     .replace(/just (announced|released|launched)/gi, 'announced')
     // First-person to third-person - preserve grammar
     .replace(/I (discovered|found|learned) (this|that) (while|when)/gi, 'Research shows that')
-    // Handle "I had" patterns more carefully
+    // Handle "I had" patterns more carefully - make it more natural
     .replace(/I had (the|a|an) ([^.!?]+?)(?=\s+[A-Z]|$|\.|,|;)/gi, (match, article, rest) => {
-      // If the rest starts with a verb, make it "Organizations can have..."
-      if (/^(monitor|access|use|configure|set|give|enable)/i.test(rest.trim())) {
-        return `Organizations can have ${article} ${rest}`;
+      // If the rest starts with a verb, make it "Organizations can use [noun] to [verb]"
+      const restTrimmed = rest.trim();
+      if (/^(monitor|access|use|configure|set|give|enable|dig|order|negotiate)/i.test(restTrimmed)) {
+        // Extract the noun and verb
+        const verbMatch = restTrimmed.match(/^(\w+)\s+(.+)$/);
+        if (verbMatch) {
+          const verb = verbMatch[1];
+          const object = verbMatch[2];
+          return `Organizations can use ${article} ${object} to ${verb}`;
+        }
+        return `Organizations can use ${article} ${rest}`;
       }
       return `Organizations have ${article} ${rest}`;
     })
@@ -128,9 +136,16 @@ function makeContentEvergreen(content: string): string {
   
   // Cleanup pass: Fix any remaining broken "Organizations" patterns
   result = result
-    // Fix "Organizations the [noun] [verb]" -> "Organizations can have the [noun] [verb]"
-    .replace(/Organizations (the|a|an) ([a-z][^.!?]*?)\s+(monitor|access|use|configure|set|give|enable|dig|order|negotiate)/gi, 
-      'Organizations can have $1 $2 $3')
+    // Fix "Organizations the [noun] [verb]" -> "Organizations can use the [noun] to [verb]"
+    .replace(/Organizations (the|a|an) ([a-z][^.!?]*?)\s+(monitor|access|use|configure|set|give|enable|dig|order|negotiate)\s+([^.!?]+)/gi, 
+      (match, article, noun, verb, object) => {
+        return `Organizations can use ${article} ${noun} to ${verb} ${object}`;
+      })
+    // Fix "Organizations can have the [noun] [verb]" -> "Organizations can use the [noun] to [verb]"
+    .replace(/Organizations can have (the|a|an) ([a-z][^.!?]*?)\s+(monitor|access|use|configure|set|give|enable|dig|order|negotiate)\s+([^.!?]+)/gi,
+      (match, article, noun, verb, object) => {
+        return `Organizations can use ${article} ${noun} to ${verb} ${object}`;
+      })
     // Fix "Organizations it [verb]" -> "Organizations can [verb] it"
     .replace(/Organizations it ([a-z][^.!?]+)/gi, 'Organizations can $1 it')
     // Fix "Organizations [ProperNoun] to [verb]" -> "Organizations can enable [ProperNoun] to [verb]"
