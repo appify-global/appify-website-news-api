@@ -69,8 +69,16 @@ Topic Description: ${blueprint.description}`,
    - Start with the first section heading: ## ${blueprint.sections[0]}
    - Follow with the remaining sections in order: ${blueprint.sections.slice(1).map(s => `## ${s}`).join(', ')}
    - Each section must have 2-3 substantial paragraphs (minimum 150 words per section)
-   - Each paragraph must be 2-4 sentences (2-4 lines) with depth and analysis - NO bullet points or checklists
+   - Each paragraph must be a FULL ANALYTICAL PARAGRAPH (minimum 120-180 words, 4-6 sentences) - NO bullet points or checklists
+   - Each paragraph MUST include:
+     * A clear explanation of the concept
+     * A practical example or implementation detail
+     * At least one trade-off or consideration
+     * Specific technical terminology (architecture, inference, APIs, governance, data pipelines, model lifecycle, etc.)
    - Write in full narrative paragraphs that explain concepts, provide context, and offer insights
+   - DO NOT write generic summaries - every paragraph must have specific, actionable detail
+   - DO NOT use filler phrases - every sentence must add value
+   - DO NOT repeat the same structure across sections - vary paragraph structure and approach
    - DO NOT use generic headings like "Why It Matters", "Industry Response", "Future Outlook"
    - DO NOT repeat section headings - each heading should appear only once
    - DO NOT include a "Conclusion" section - end with the last content section
@@ -86,6 +94,9 @@ Topic Description: ${blueprint.description}`,
      * Technical risks (hallucinations, bias, security vulnerabilities)
      * Operational risks (governance, compliance, ongoing maintenance)
      * Strategic trade-offs (cost vs performance, vendor lock-in, scalability)
+     * Each trade-off or consideration must be expanded into a FULL ANALYTICAL PARAGRAPH (minimum 120-180 words) with specific details, examples, and implications
+     * DO NOT list trade-offs as single sentences - each must be a complete paragraph with depth
+     * Each paragraph must include: clear explanation, practical example, trade-off/consideration, and specific terminology
    - **Implementation Depth**: Provide specific, actionable guidance with technical specifics:
      * Which technologies/frameworks and why
      * Architecture decisions and their implications
@@ -108,9 +119,16 @@ Topic Description: ${blueprint.description}`,
    - Throughout body paragraphs (natural density ~1-2%)
 
 7. **Content Quality - AUTHORITY LEVEL**:
-   - Write in full paragraphs with depth - NO bullet points, NO checklists, NO numbered lists
-   - Each paragraph should be 2-4 sentences (2-4 lines) that develop an idea with technical context, specific examples, and deep analysis
-   - Avoid generic filler phrases like "industry landscape continues to evolve" or "maintain competitive advantage"
+   - Write in full analytical paragraphs with depth - NO bullet points, NO checklists, NO numbered lists
+   - Each paragraph must be a FULL ANALYTICAL PARAGRAPH (minimum 120-180 words, 4-6 sentences)
+   - Each paragraph MUST include:
+     * A clear explanation of the concept
+     * A practical example or implementation detail
+     * At least one trade-off or consideration
+     * Specific technical terminology (architecture, inference, APIs, governance, data pipelines, model lifecycle, etc.)
+   - DO NOT write generic summaries - every paragraph must have specific, actionable detail
+   - DO NOT use filler phrases like "industry landscape continues to evolve" or "maintain competitive advantage"
+   - DO NOT repeat the same structure across sections - vary paragraph structure and approach
    - Avoid generic praise language ("revolutionary", "game-changing", etc.)
    - Avoid promotional tone - NO service pitches, NO "contact us", NO "learn more about our services"
    - Sound like technical authority content, not agency blog content
