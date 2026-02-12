@@ -975,36 +975,80 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     const headings = generateTopicSpecificHeadings(coreConcept, item.title, sourceContent);
     
     // Helper function to add paragraphs to a section ensuring minimum 2 paragraphs and 120 words
-    function addSectionWithMinimums(sectionHeading: string, minParagraphs: number = 2, minWords: number = 120): void {
-      blogSections.push("", sectionHeading);
-      const sectionStartIndex = blogSections.length;
+    function addSectionWithMinimums(sectionHeading: string, minParagraphs: number = 2, minWords: number = 120, required: boolean = true): boolean {
+      // First, try to collect paragraphs before adding the heading
       const sectionParagraphs: string[] = [];
       let sectionWordCount = 0;
+      let tempParaIndex = paraIndex;
+      let attempts = 0;
+      const maxAttempts = paragraphs.length * 3; // Prevent infinite loop
       
-      // Add paragraphs until we meet minimums
-      while ((sectionParagraphs.length < minParagraphs || sectionWordCount < minWords) && paraIndex < paragraphs.length) {
-        const p = paragraphs[paraIndex++];
+      // Collect paragraphs until we meet minimums
+      while ((sectionParagraphs.length < minParagraphs || sectionWordCount < minWords) && tempParaIndex < paragraphs.length && attempts < maxAttempts) {
+        attempts++;
+        const p = paragraphs[tempParaIndex++];
+        
+        // Skip if it's generic filler or broken
         if (isGenericFiller(p) || isBrokenParagraph(p)) continue;
-        if (/"[^"]{20,}"/.test(p) || /\b(said|says|according to|told|stated|quoted|in an interview)\b/i.test(p)) continue;
-        if (/\b(announced|reported|revealed|in an interview|in a statement)\b/i.test(p)) continue;
-        if (/\b(subscribe|newsletter|sign up|e-newsletter)\b/i.test(p)) continue;
+        
+        // Skip if it has quotes or news fragments (but be less strict if we're running low on content)
+        const remainingParagraphs = paragraphs.length - tempParaIndex;
+        const isLowOnContent = remainingParagraphs < 15;
+        
+        if (!isLowOnContent) {
+          // Strict filtering when we have plenty of content
+          if (/"[^"]{20,}"/.test(p) || /\b(said|says|according to|told|stated|quoted|in an interview)\b/i.test(p)) continue;
+          if (/\b(announced|reported|revealed|in an interview|in a statement)\b/i.test(p)) continue;
+          if (/\b(subscribe|newsletter|sign up|e-newsletter)\b/i.test(p)) continue;
+        } else {
+          // Less strict when running low - only skip obvious issues
+          if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(p)) continue;
+        }
         
         const fingerprint = getParagraphFingerprint(p);
         if (addedParagraphFingerprints.has(fingerprint)) continue;
         
         sectionParagraphs.push(p);
-        addedParagraphFingerprints.add(fingerprint);
         sectionWordCount += p.split(/\s+/).length;
-        totalWords += p.split(/\s+/).length;
-        companyMentionWords += (countCompanyMentions(p) * 10);
       }
       
-      // Add paragraphs to blog sections
-      sectionParagraphs.forEach(p => blogSections.push(p));
+      // Only add section if we have at least some content (or if it's required)
+      if (sectionParagraphs.length === 0 && required) {
+        // For required sections, add whatever we can find (be very lenient)
+        tempParaIndex = paraIndex; // Reset to start
+        while (tempParaIndex < paragraphs.length && sectionParagraphs.length < minParagraphs) {
+          const p = paragraphs[tempParaIndex++];
+          if (isGenericFiller(p) || isBrokenParagraph(p)) continue;
+          if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(p)) continue;
+          const fingerprint = getParagraphFingerprint(p);
+          if (addedParagraphFingerprints.has(fingerprint)) continue;
+          sectionParagraphs.push(p);
+          sectionWordCount += p.split(/\s+/).length;
+        }
+      }
       
-      // Warn if section doesn't meet minimums
-      if (sectionParagraphs.length < minParagraphs || sectionWordCount < minWords) {
-        console.warn(`[Code] Section "${sectionHeading}" has only ${sectionParagraphs.length} paragraphs and ${sectionWordCount} words (min: ${minParagraphs} paragraphs, ${minWords} words)`);
+      // If we have content, add the section
+      if (sectionParagraphs.length > 0) {
+        blogSections.push("", sectionHeading);
+        sectionParagraphs.forEach(p => {
+          blogSections.push(p);
+          addedParagraphFingerprints.add(getParagraphFingerprint(p));
+          totalWords += p.split(/\s+/).length;
+          companyMentionWords += (countCompanyMentions(p) * 10);
+        });
+        paraIndex = tempParaIndex; // Update the global index
+        
+        // Warn if section doesn't meet minimums
+        if (sectionParagraphs.length < minParagraphs || sectionWordCount < minWords) {
+          console.warn(`[Code] Section "${sectionHeading}" has only ${sectionParagraphs.length} paragraphs and ${sectionWordCount} words (min: ${minParagraphs} paragraphs, ${minWords} words)`);
+        }
+        return true;
+      } else {
+        // No content found, don't add the section
+        if (required) {
+          console.warn(`[Code] Could not find content for required section "${sectionHeading}" - skipping to avoid empty section`);
+        }
+        return false;
       }
     }
     
