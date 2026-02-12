@@ -8,6 +8,7 @@ interface SEOResult {
   metaTitle: string;
   metaDescription: string;
   topics: string;
+  primaryKeyword?: string;
 }
 
 // Comprehensive keyword list for SEO dominance (15-20 keywords)
@@ -325,7 +326,39 @@ export async function optimizeForSEO(
 
   // Extract keywords (targeting 15-20 keywords for SEO dominance)
   const keywords = extractKeywords(blogContent);
-  const primaryKeyword = keywords[0] || "app development";
+  // Smart primary keyword selection: choose the most relevant keyword based on content and title
+  // Analyze content to determine the best primary keyword
+  const contentLower = blogContent.toLowerCase();
+  const titleLower = (rssTitle || "").toLowerCase();
+  
+  let primaryKeyword = keywords[0] || "app development";
+  
+  // Priority: Check title first (most descriptive), then content
+  if (titleLower.includes("ai agent") || contentLower.includes("ai agent")) {
+    primaryKeyword = "AI agent";
+  } else if (titleLower.includes("ai software") || contentLower.includes("ai software")) {
+    primaryKeyword = "AI software";
+  } else if (titleLower.includes("openai") || (contentLower.includes("openai") && contentLower.includes("ai"))) {
+    primaryKeyword = "AI software";
+  } else if (titleLower.includes("digital transformation") || contentLower.includes("digital transformation")) {
+    primaryKeyword = "digital transformation";
+  } else if (titleLower.includes("workforce automation") || contentLower.includes("workforce automation")) {
+    primaryKeyword = "workforce automation";
+  } else if (titleLower.includes("app development") || (contentLower.includes("app development") && ((contentLower.match(/\bapp development\b/g) || []).length > 2))) {
+    primaryKeyword = "app development";
+  } else if (contentLower.includes("ai") && (contentLower.includes("software") || contentLower.includes("platform") || contentLower.includes("tool"))) {
+    primaryKeyword = "AI software";
+  } else if (keywords.length > 0) {
+    // Use the first keyword that appears multiple times in content
+    for (const keyword of keywords) {
+      const keywordLower = keyword.toLowerCase();
+      const count = (contentLower.match(new RegExp(`\\b${keywordLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g')) || []).length;
+      if (count >= 2) {
+        primaryKeyword = keyword;
+        break;
+      }
+    }
+  }
   
   // Log keyword strategy
   console.log(`[Code] Extracted ${keywords.length} keywords (target: 15-20)`);
@@ -391,5 +424,6 @@ export async function optimizeForSEO(
     metaTitle,
     metaDescription,
     topics,
+    primaryKeyword,
   };
 }

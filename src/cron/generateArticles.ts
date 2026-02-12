@@ -165,42 +165,8 @@ export async function generateArticles(): Promise<void> {
       const slug = generateSlug(blogTitle); // Use generated title for slug
       
       // Step 7.5: Strict quality validation before publishing
-      // Extract primary keyword from SEO result or content
-      // The SEO optimizer should have identified a primary keyword
-      let primaryKeyword: string | undefined;
-      
-      // Try to extract from common keyword patterns in the content
-      const contentLower = seoResult.optimizedContent.toLowerCase();
-      const keywordPatterns = [
-        /ai (app|software|integration|development|platform)/i,
-        /digital transformation/i,
-        /app development/i,
-        /workforce automation/i,
-        /workplace automation/i,
-        /business automation/i,
-        /technology (strategy|adoption)/i,
-        /emerging technology/i,
-      ];
-      
-      for (const pattern of keywordPatterns) {
-        const match = seoResult.optimizedContent.match(pattern);
-        if (match) {
-          primaryKeyword = match[0];
-          break;
-        }
-      }
-      
-      // If no keyword found, try to extract from title or first paragraph
-      if (!primaryKeyword) {
-        const firstParagraph = contentBlocks.find((b) => b.type === "paragraph" && b.text)?.text || "";
-        for (const pattern of keywordPatterns) {
-          const match = firstParagraph.match(pattern);
-          if (match) {
-            primaryKeyword = match[0];
-            break;
-          }
-        }
-      }
+      // Use primary keyword from SEO result (already identified by optimizer)
+      const primaryKeyword = seoResult.primaryKeyword;
       
       const validation = validateArticleContent(
         seoResult.optimizedContent,
