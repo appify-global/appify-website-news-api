@@ -97,8 +97,9 @@ Instruction 5: Maintain an authoritative, professional tone. Write for founders,
 - Practical, actionable guidance
 - Industry expertise (without generic filler)
 - Clear, confident writing
+- Thought leadership perspective, not commentary
 
-Instruction 6: 
+Instruction 6: Content Requirements:
 - Keep paragraphs concise (3-5 lines)
 - Avoid generic filler sections
 - Avoid repeated phrasing
@@ -106,6 +107,12 @@ Instruction 6:
 - Use bullet points or lists only when they add value
 - NO emojis
 - NO mention of RSS sources or original articles
+- NO generic praise language ("revolutionary", "game-changing", etc.)
+- NO promotional tone
+- Ensure article has a definition section
+- Ensure article has a practical implementation section
+- Do NOT center content around specific companies - use them as examples only
+- Focus on evergreen themes, not company-specific news
 
 Instruction 7: At the end of the blog, generate:
 – A meta title (maximum 60 characters) including the primary keyword at the beginning
@@ -138,7 +145,19 @@ TOPICS: [one of: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Cultur
       },
       {
         role: "user",
-        content: `Optimize this blog for long-term SEO authority. Focus on ONE primary keyword plus 3-5 long-tail variations. Ensure content is original, evergreen, and contributes to topical authority. Remove any generic filler, repeated phrasing, or time-sensitive references. Target stable search intent:\n${blogContent}`,
+        content: `Optimize this blog for long-term SEO authority. 
+
+CRITICAL: Ensure the article:
+- Focuses on the evergreen theme, NOT specific companies
+- Uses companies only as supporting examples
+- Has ONE clear primary keyword
+- Includes a definition section
+- Includes a practical implementation section
+- Avoids generic praise language
+- Avoids promotional tone
+- Feels like industry thought leadership, not commentary
+
+Focus on ONE primary keyword plus 3-5 long-tail variations. Remove any generic filler, repeated phrasing, time-sensitive references, or company-centric focus. Target stable search intent within: App development, AI integration, Digital transformation, Community-driven platforms:\n${blogContent}`,
       },
     ],
   });
