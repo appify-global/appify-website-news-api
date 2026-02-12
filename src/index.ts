@@ -4,6 +4,7 @@ import cron from "node-cron";
 import { newsRouter } from "./routes/news";
 import { adminRouter } from "./routes/admin";
 import { generateArticles } from "./cron/generateArticles";
+import { prisma } from "./lib/prisma";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -35,9 +36,25 @@ app.use("/api/news", (req, res, next) => {
 app.use("/api/news", newsRouter);
 app.use("/api/admin", adminRouter);
 
-// Health check
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+// Health check with database connection test
+app.get("/health", async (_req, res) => {
+  try {
+    // Test database connection
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      database: "connected"
+    });
+  } catch (error: any) {
+    console.error("Health check failed - database error:", error);
+    res.status(503).json({ 
+      status: "error", 
+      timestamp: new Date().toISOString(),
+      database: "disconnected",
+      error: error?.message || "Database connection failed"
+    });
+  }
 });
 
 // Cron job: generate articles every 3 hours
