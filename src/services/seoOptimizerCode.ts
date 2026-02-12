@@ -16,12 +16,17 @@ interface SEOResult {
 const PRIMARY_KEYWORDS = [
   "app development",
   "AI app development",
+  "AI agent",
+  "AI software",
+  "artificial intelligence software",
   "mobile app developers",
   "custom software development",
   "app developers Australia",
   "software development",
   "digital transformation",
   "mobile applications",
+  "workforce automation",
+  "workplace automation",
 ];
 
 // Long-tail keywords (lower volume, easier to rank)
@@ -40,6 +45,14 @@ const LONG_TAIL_KEYWORDS = [
   "when should you use AI in mobile apps",
   "AI app developers Sydney",
   "app development company Melbourne",
+  "what is an AI agent",
+  "how do AI agents work",
+  "AI agent technology",
+  "autonomous AI agents",
+  "AI software solutions",
+  "AI software platform",
+  "workforce automation solutions",
+  "business automation software",
 ];
 
 // Combine all keywords
@@ -299,6 +312,24 @@ function addInternalLinks(content: string): string {
       '<a href="/automation">$1</a>'
     );
     addedLinks.add("digital");
+    linkCount++;
+  }
+
+  if (optimized.toLowerCase().includes("ai agent") && !addedLinks.has("ai-agent") && linkCount < maxLinks) {
+    optimized = optimized.replace(
+      /(\bai agent\b)/i,
+      '<a href="/automation">$1</a>'
+    );
+    addedLinks.add("ai-agent");
+    linkCount++;
+  }
+
+  if (optimized.toLowerCase().includes("ai software") && !addedLinks.has("ai-software") && linkCount < maxLinks) {
+    optimized = optimized.replace(
+      /(\bai software\b)/i,
+      '<a href="/projects">$1</a>'
+    );
+    addedLinks.add("ai-software");
     linkCount++;
   }
 

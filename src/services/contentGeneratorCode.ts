@@ -95,19 +95,34 @@ async function fetchArticleContent(url: string): Promise<{ content: string; imag
 
 /**
  * Remove time-sensitive references to make content evergreen
+ * Preserves grammar and readability while making content timeless
  */
 function makeContentEvergreen(content: string): string {
   return content
+    // Time references - make generic
     .replace(/this (week|month|year|past week|past month)/gi, 'recently')
     .replace(/(today|yesterday|last (week|month|year))/gi, 'recently')
     .replace(/in (2024|2025|2026)/gi, 'recently')
     .replace(/over the (past|last) (few|several) (days|weeks|months)/gi, 'recently')
+    .replace(/this past (week|month)/gi, 'recently')
     .replace(/just (announced|released|launched)/gi, 'announced')
+    // First-person to third-person - preserve grammar
     .replace(/I (discovered|found|learned) (this|that) (while|when)/gi, 'Research shows that')
-    .replace(/I (had|gave|asked|tried)/gi, 'Organizations')
+    .replace(/I had (the|a|an) ([^.!?]+)/gi, 'Organizations have $1 $2')
+    .replace(/I gave ([^.!?]+)/gi, 'Organizations provide $1')
+    .replace(/I asked ([^.!?]+)/gi, 'Organizations can request $1')
+    .replace(/I tried ([^.!?]+)/gi, 'Organizations can attempt $1')
+    // Personal references - make professional
     .replace(/my (experience|testing|use)/gi, 'industry experience')
     .replace(/personal (assistant|use)/gi, 'business applications')
-    .replace(/this past (week|month)/gi, 'recently');
+    // Remove overly personal statements that break flow
+    .replace(/I (figured|thought|decided|wanted)/gi, 'Industry leaders')
+    .replace(/I (was|am|will be)/gi, 'Organizations are')
+    // Fix any remaining broken "Organizations" patterns
+    .replace(/Organizations ([a-z])/g, (match, letter) => `Organizations ${letter.toUpperCase()}`)
+    .replace(/Organizations the ([^.!?]+)/gi, 'Organizations can $1')
+    .replace(/Organizations it ([^.!?]+)/gi, 'Organizations can provide $1')
+    .replace(/Organizations ([A-Z][a-z]+) to ([^.!?]+)/gi, 'Organizations can enable $1 to $2');
 }
 
 /**
