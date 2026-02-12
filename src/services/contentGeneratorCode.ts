@@ -318,6 +318,10 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     const contentAnalysis = analyzeContentForHeadings(sourceContent, item.title);
     
     // Build comprehensive content sections for SEO dominance (3000-4000 words)
+    // Track all paragraphs added to prevent duplicates across sections
+    const addedParagraphFingerprints = new Set<string>();
+    const getParagraphFingerprint = (p: string) => p.trim().toLowerCase().replace(/\s+/g, " ").substring(0, 200);
+    
     const blogSections: string[] = [
       `## ${mainHeading}`,
     ];
@@ -325,7 +329,13 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Introduction section (300-500 words)
     blogSections.push("", "## Introduction");
     if (introParagraphs.length > 0) {
-      blogSections.push(...introParagraphs);
+      introParagraphs.forEach(p => {
+        const fingerprint = getParagraphFingerprint(p);
+        if (!addedParagraphFingerprints.has(fingerprint)) {
+          blogSections.push(p);
+          addedParagraphFingerprints.add(fingerprint);
+        }
+      });
     } else {
       const snippet = item.contentSnippet || item.content || "";
       if (snippet.length > 50) {
@@ -341,75 +351,133 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Main section - avoid generic "What is" phrasing
     blogSections.push("", `## ${contentAnalysis.mainSectionHeading}`);
     if (whatIsParagraphs.length > 0) {
-      blogSections.push(...whatIsParagraphs);
+      whatIsParagraphs.forEach(p => {
+        const fingerprint = getParagraphFingerprint(p);
+        if (!addedParagraphFingerprints.has(fingerprint)) {
+          blogSections.push(p);
+          addedParagraphFingerprints.add(fingerprint);
+        }
+      });
     } else {
       blogSections.push(contentAnalysis.mainSectionContent[0]);
       blogSections.push("This development represents a significant advancement in the technology sector, with far-reaching implications for businesses and consumers alike.");
       blogSections.push("The integration of new technologies and methodologies is reshaping how organizations operate and compete in the digital marketplace.");
     }
     
-    // Second main section - avoid generic phrasing
+    // Second main section - avoid generic phrasing and prevent duplicates
     if (contentAnalysis.secondSectionHeading) {
       blogSections.push("", `## ${contentAnalysis.secondSectionHeading}`);
-    if (whyMattersParagraphs.length > 0) {
-      blogSections.push(...whyMattersParagraphs);
-    } else {
-      blogSections.push(contentAnalysis.mainSectionContent[1]);
-      blogSections.push("Organizations that adapt quickly to these changes are better positioned to leverage new opportunities and maintain their competitive edge.");
-      blogSections.push("The evolving technology landscape presents both challenges and opportunities for businesses seeking to innovate.");
-    }
-    
-      if (howWorksParagraphs.length > 0) {
-        blogSections.push(...howWorksParagraphs);
-      } else if (whyMattersParagraphs.length > 0) {
-        blogSections.push(...whyMattersParagraphs);
+      if (whyMattersParagraphs.length > 0) {
+        whyMattersParagraphs.forEach(p => {
+          const fingerprint = getParagraphFingerprint(p);
+          if (!addedParagraphFingerprints.has(fingerprint)) {
+            blogSections.push(p);
+            addedParagraphFingerprints.add(fingerprint);
+          }
+        });
       } else {
-        blogSections.push(contentAnalysis.secondSectionContent[0]);
-        blogSections.push(contentAnalysis.secondSectionContent[1]);
+        blogSections.push(contentAnalysis.mainSectionContent[1]);
+        blogSections.push("Organizations that adapt quickly to these changes are better positioned to leverage new opportunities and maintain their competitive edge.");
+        blogSections.push("The evolving technology landscape presents both challenges and opportunities for businesses seeking to innovate.");
+      }
+      
+      // Only add howWorksParagraphs if they're different from whyMattersParagraphs
+      if (howWorksParagraphs.length > 0) {
+        howWorksParagraphs.forEach(p => {
+          const fingerprint = getParagraphFingerprint(p);
+          if (!addedParagraphFingerprints.has(fingerprint)) {
+            blogSections.push(p);
+            addedParagraphFingerprints.add(fingerprint);
+          }
+        });
       }
     }
     
-    // Best Practices section - only if we have content
+    // Best Practices section - only if we have content (check for duplicates)
     if (bestPracticesParagraphs.length > 0 || caseStudiesParagraphs.length > 0) {
       blogSections.push("", "## Implementation Strategies");
       if (bestPracticesParagraphs.length > 0) {
-        blogSections.push(...bestPracticesParagraphs);
+        bestPracticesParagraphs.forEach(p => {
+          const fingerprint = getParagraphFingerprint(p);
+          if (!addedParagraphFingerprints.has(fingerprint)) {
+            blogSections.push(p);
+            addedParagraphFingerprints.add(fingerprint);
+          }
+        });
       }
       if (caseStudiesParagraphs.length > 0) {
-        blogSections.push(...caseStudiesParagraphs);
+        caseStudiesParagraphs.forEach(p => {
+          const fingerprint = getParagraphFingerprint(p);
+          if (!addedParagraphFingerprints.has(fingerprint)) {
+            blogSections.push(p);
+            addedParagraphFingerprints.add(fingerprint);
+          }
+        });
       }
     }
     
-    // Common Challenges section - only if we have content
+    // Common Challenges section - only if we have content (check for duplicates)
     if (challengesParagraphs.length > 0) {
       blogSections.push("", "## Key Considerations");
-      blogSections.push(...challengesParagraphs);
+      challengesParagraphs.forEach(p => {
+        const fingerprint = getParagraphFingerprint(p);
+        if (!addedParagraphFingerprints.has(fingerprint)) {
+          blogSections.push(p);
+          addedParagraphFingerprints.add(fingerprint);
+        }
+      });
     }
     
-    // Future section - only if we have content
+    // Future section - only if we have content (check for duplicates)
     if (futureParagraphs.length > 0) {
       blogSections.push("", `## Industry Outlook`);
-      blogSections.push(...futureParagraphs);
+      futureParagraphs.forEach(p => {
+        const fingerprint = getParagraphFingerprint(p);
+        if (!addedParagraphFingerprints.has(fingerprint)) {
+          blogSections.push(p);
+          addedParagraphFingerprints.add(fingerprint);
+        }
+      });
     }
     
-    // App Development implications (only if relevant)
+    // App Development implications (only if relevant and we have actual content)
     if (contentAnalysis.includeAppDevSection) {
-      blogSections.push("", `## ${contentAnalysis.appDevHeading}`);
-      blogSections.push(contentAnalysis.appDevContent[0]);
-      blogSections.push(contentAnalysis.appDevContent[1]);
-      blogSections.push(contentAnalysis.appDevContent[2]);
+      // Use remaining paragraphs for app dev section instead of empty appDevContent
+      const appDevParagraphs = paragraphs.slice(33, Math.min(38, paragraphs.length));
+      if (appDevParagraphs.length > 0) {
+        blogSections.push("", `## ${contentAnalysis.appDevHeading}`);
+        appDevParagraphs.forEach(p => {
+          const fingerprint = getParagraphFingerprint(p);
+          if (!addedParagraphFingerprints.has(fingerprint)) {
+            blogSections.push(p);
+            addedParagraphFingerprints.add(fingerprint);
+          }
+        });
+      }
     }
     
-    // Conclusion section - use actual content, avoid generic phrasing
+    // Conclusion section - use actual content, avoid generic phrasing (check for duplicates)
     if (conclusionParagraphs.length > 0) {
       blogSections.push("", "## Summary");
-      blogSections.push(...conclusionParagraphs);
+      conclusionParagraphs.forEach(p => {
+        const fingerprint = getParagraphFingerprint(p);
+        if (!addedParagraphFingerprints.has(fingerprint)) {
+          blogSections.push(p);
+          addedParagraphFingerprints.add(fingerprint);
+        }
+      });
     } else if (paragraphs.length > 0) {
       // Use remaining paragraphs instead of generic conclusion
-      const remainingParagraphs = paragraphs.slice(33, Math.min(36, paragraphs.length));
+      const remainingParagraphs = paragraphs.slice(38, Math.min(42, paragraphs.length));
       if (remainingParagraphs.length > 0) {
         blogSections.push("", "## Summary");
-        blogSections.push(...remainingParagraphs);
+        remainingParagraphs.forEach(p => {
+          const fingerprint = getParagraphFingerprint(p);
+          if (!addedParagraphFingerprints.has(fingerprint)) {
+            blogSections.push(p);
+            addedParagraphFingerprints.add(fingerprint);
+          }
+        });
       }
     }
 
@@ -434,61 +502,30 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         }
       }
       
-      // If still short, aggressively add paragraphs until we reach 1200 words
-      if (wordCount < 1200) {
-        const contextualParagraphs = [
-          "The technology landscape continues to evolve rapidly, with new developments reshaping how businesses operate and compete in the digital marketplace.",
-          "Organizations that stay informed about these changes and adapt their strategies accordingly are better positioned to leverage emerging opportunities.",
-          "Understanding the implications of technological advances is crucial for making informed decisions about digital transformation initiatives.",
-          "The integration of new technologies requires careful planning and strategic thinking to maximize benefits while minimizing potential risks.",
-          "Industry leaders recognize the importance of staying current with technological trends and investing in innovation to maintain competitive advantage.",
-          "As the digital economy continues to grow, businesses must be prepared to embrace change and adapt to new ways of working.",
-          "The successful implementation of new technologies often depends on having the right expertise and resources in place.",
-          "Companies that invest in understanding emerging technologies are more likely to identify opportunities for growth and improvement.",
-          "Strategic planning and execution are essential for organizations looking to capitalize on technological innovations.",
-          "The ability to adapt quickly to changing market conditions and technological developments is a key differentiator for successful businesses.",
-          "Effective technology adoption requires a comprehensive approach that considers both immediate needs and long-term strategic goals.",
-          "Businesses that prioritize innovation and stay ahead of technological trends are better equipped to navigate market disruptions.",
-          "The convergence of emerging technologies creates new opportunities for organizations to transform their operations and create competitive advantages.",
-          "Successful digital transformation initiatives require strong leadership, clear vision, and commitment to continuous improvement.",
-          "Organizations must balance innovation with risk management to ensure sustainable growth and long-term success.",
-          "Modern businesses face increasing pressure to digitize operations and leverage technology for competitive advantage.",
-          "The pace of technological change requires organizations to be agile and responsive to new opportunities and challenges.",
-          "Investing in technology infrastructure and capabilities is essential for long-term business sustainability and growth.",
-          "Companies that fail to adapt to technological changes risk falling behind competitors and losing market share.",
-          "Strategic technology investments can drive operational efficiency, improve customer experiences, and open new revenue streams.",
-          "The digital transformation journey requires careful planning, stakeholder alignment, and a clear vision for the future.",
-          "Organizations must continuously evaluate and update their technology strategies to remain competitive in an evolving marketplace.",
-          "Effective technology implementation requires collaboration between technical teams, business leaders, and end users.",
-          "The benefits of technology adoption extend beyond operational improvements to include enhanced decision-making and strategic insights.",
-          "Businesses that embrace innovation and technological change are better positioned to thrive in an increasingly digital world."
-        ];
-        
-        // Find a good place to insert contextual content (before conclusion, or at end if no conclusion)
+      // If still short, add more from source paragraphs (NO generic filler)
+      if (wordCount < 800) {
+        // Find a good place to insert additional content (before conclusion, or at end if no conclusion)
         let insertIndex = sections.findIndex(s => s.trim().startsWith("## Summary") || s.trim().startsWith("## Conclusion") || s.trim().startsWith("## Strategic Outlook"));
         if (insertIndex < 0) {
           insertIndex = sections.length; // Insert at end if no conclusion found
         }
         
-        // Aggressively add paragraphs until we reach 800 words (practical minimum)
         // Track existing content to avoid duplicates
         const existingContent = new Set<string>();
         sections.forEach(s => {
           if (s.trim() && !s.trim().startsWith("##")) {
-            existingContent.add(s.trim().toLowerCase().substring(0, 100)); // First 100 chars as fingerprint
+            existingContent.add(s.trim().toLowerCase().substring(0, 200)); // First 200 chars as fingerprint
           }
         });
         
         let currentWordCount = wordCount;
-        let paragraphsAdded = 0;
-        const hasHeadingNearby = insertIndex > 0 && sections[insertIndex - 1]?.trim().startsWith("##");
         const targetWords = 800;
         
-        // First, try to add more from source paragraphs if available (avoid duplicates)
-        if (paragraphs.length > 33 && currentWordCount < targetWords) {
-          const remainingParagraphs = paragraphs.slice(33, Math.min(60, paragraphs.length))
+        // Only use remaining source paragraphs - NO generic filler
+        if (paragraphs.length > 42 && currentWordCount < targetWords) {
+          const remainingParagraphs = paragraphs.slice(42, Math.min(80, paragraphs.length))
             .filter(p => {
-              const fingerprint = p.trim().toLowerCase().substring(0, 100);
+              const fingerprint = p.trim().toLowerCase().substring(0, 200);
               if (existingContent.has(fingerprint)) return false;
               existingContent.add(fingerprint);
               return true;
@@ -498,36 +535,6 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
             sections.splice(insertIndex, 0, "", ...remainingParagraphs);
             blogContent = sections.join("\n\n");
             currentWordCount = blogContent.split(/\s+/).length;
-            paragraphsAdded += remainingParagraphs.length;
-          }
-        }
-        
-        // Keep adding contextual paragraphs until we reach target (avoid duplicates)
-        while (currentWordCount < targetWords && paragraphsAdded < contextualParagraphs.length) {
-          const wordsNeeded = targetWords - currentWordCount;
-          const paragraphsToAdd = Math.ceil(wordsNeeded / 50) + 1; // Add 1 extra to ensure we exceed
-          const startIndex = paragraphsAdded;
-          const endIndex = Math.min(startIndex + paragraphsToAdd, contextualParagraphs.length);
-          const additionalParagraphs = contextualParagraphs.slice(startIndex, endIndex)
-            .filter(p => {
-              const fingerprint = p.trim().toLowerCase().substring(0, 100);
-              if (existingContent.has(fingerprint)) return false;
-              existingContent.add(fingerprint);
-              return true;
-            });
-          
-          if (additionalParagraphs.length > 0) {
-            // Add heading if this is the first batch and no heading nearby
-            if (paragraphsAdded === 0 && !hasHeadingNearby) {
-              sections.splice(insertIndex, 0, "", "## Strategic Implications", ...additionalParagraphs);
-            } else {
-              sections.splice(insertIndex + paragraphsAdded + (paragraphsAdded === 0 && !hasHeadingNearby ? 2 : 0), 0, "", ...additionalParagraphs);
-            }
-            blogContent = sections.join("\n\n");
-            currentWordCount = blogContent.split(/\s+/).length;
-            paragraphsAdded += additionalParagraphs.length;
-          } else {
-            break; // No more unique paragraphs to add
           }
         }
         
@@ -581,13 +588,15 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
       }
     }
     
-    if (contentAnalysis.includeAppDevSection) {
+    if (contentAnalysis.includeAppDevSection && rssParagraphs.length > 9) {
       blogSections.push("", `## ${contentAnalysis.appDevHeading}`);
-      blogSections.push(...contentAnalysis.appDevContent);
+      blogSections.push(...rssParagraphs.slice(9, Math.min(12, rssParagraphs.length)));
     }
     
-    blogSections.push("", "## Conclusion");
-    blogSections.push(...contentAnalysis.conclusionContent);
+    if (rssParagraphs.length > 12) {
+      blogSections.push("", "## Summary");
+      blogSections.push(...rssParagraphs.slice(12, Math.min(15, rssParagraphs.length)));
+    }
     
     return blogSections.join("\n\n");
   }
