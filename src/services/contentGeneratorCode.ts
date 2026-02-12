@@ -214,11 +214,24 @@ function isValidSentence(sentence: string): boolean {
   
   // Filter out incomplete fragments
   const incompletePatterns = [
-    /^as\s+\w+\s+\w+\s*\.$/i, // "As internal usage grows."
+    /^as\s+[^.!?]+\.\s*$/i, // "As internal usage of the technology grows." - any sentence starting with "As" that ends with period (incomplete subordinate clause)
     /^[A-Z][a-z]+\s+(a|an|the)\s+\w+\s*\.$/i, // "AMP a statutory net profit."
     /^[A-Z][a-z]+\s*\.\s*$/i, // "She." or "George."
     /^[A-Z][a-z]+\s+[A-Z][a-z]+\s*\.\s*$/i, // "CEO Alexis."
   ];
+  
+  // Additional check: if sentence starts with "As" and is less than 80 chars, it's likely an incomplete subordinate clause
+  // Complete sentences with "As" usually have a main clause after the subordinate clause
+  if (/^as\s+/i.test(trimmed)) {
+    // Check if it has a main clause (look for common main clause indicators after the subordinate clause)
+    const hasMainClause = /,\s+[A-Z]/.test(trimmed) || // "As X grows, Y happens."
+                          /\s+(this|these|it|they|organizations|companies|businesses|systems|technologies)\s+/i.test(trimmed) || // Has a subject after "As"
+                          trimmed.length > 100; // Long enough to likely have both clauses
+    
+    if (!hasMainClause && trimmed.length < 100) {
+      return false; // Incomplete subordinate clause without main clause
+    }
+  }
   
   if (incompletePatterns.some(pattern => pattern.test(trimmed))) return false;
   
@@ -1067,11 +1080,24 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
       }
     }
     
-    // Add first 2 generic paragraphs
+    // Add first 2 generic paragraphs - clean them first
     for (const p of genericParagraphs.slice(0, 2)) {
-      blogSections.push(p);
-      totalWords += p.split(/\s+/).length;
-      paraIndex++;
+      // Clean the paragraph: normalize quotes and remove broken sentences
+      let cleaned = normalizeQuotes(p);
+      cleaned = cleanBrokenSentences(cleaned);
+      
+      // Only add if it has valid sentences
+      const sentences = cleaned.split(/[.!?]+/)
+        .map(s => s.trim())
+        .filter(s => s.length > 10)
+        .filter(s => isValidSentence(s + '.'));
+      
+      if (sentences.length > 0) {
+        const validParagraph = sentences.join('. ') + '.';
+        blogSections.push(validParagraph);
+        totalWords += validParagraph.split(/\s+/).length;
+        paraIndex++;
+      }
     }
     
     // Add example paragraphs after, clearly labeled with plain text
