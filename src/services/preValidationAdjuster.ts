@@ -28,7 +28,8 @@ function adjustKeywordFrequency(content: string, primaryKeyword: string): string
   
   const keywordLower = primaryKeyword.toLowerCase();
   const contentLower = content.toLowerCase();
-  const keywordRegex = new RegExp(`\\b${keywordLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+  const escapedKeyword = keywordLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const keywordRegex = new RegExp(`\\b${escapedKeyword}\\b`, 'gi');
   const currentCount = (contentLower.match(keywordRegex) || []).length;
   
   // For multi-word keywords (2+ words), allow up to 6 occurrences
@@ -37,57 +38,58 @@ function adjustKeywordFrequency(content: string, primaryKeyword: string): string
   // If keyword appears too many times, replace excess with semantic variations
   if (currentCount > maxOccurrences) {
     const semanticKeywords = getSemanticKeywords(primaryKeyword);
-    if (semanticKeywords.length === 0) return content;
-    
-    let adjusted = content;
-    const excess = currentCount - maxOccurrences;
-    let replaced = 0;
-    
-    // Split content into lines to check for headings
-    const lines = adjusted.split('\n');
-    const processedLines: string[] = [];
-    
-    for (const line of lines) {
-      // Skip headings - don't replace keywords in headings (they're important for SEO)
-      if (line.trim().startsWith('#') || line.trim().startsWith('##') || line.trim().startsWith('###')) {
-        processedLines.push(line);
-        continue;
-      }
-      
-      // Process non-heading lines
-      let processedLine = line;
-      const lineLower = processedLine.toLowerCase();
-      const lineMatches = (lineLower.match(keywordRegex) || []).length;
-      
-      if (lineMatches > 0 && replaced < excess) {
-        // Replace keyword in this line (but keep first occurrence in first 100 words)
-        const beforeLine = processedLines.join('\n');
-        const beforeWordCount = beforeLine.split(/\s+/).length;
-        const isInFirst100Words = beforeWordCount < 100;
-        
-        processedLine = processedLine.replace(keywordRegex, (match, offset) => {
-          // Keep first occurrence if in first 100 words
-          if (isInFirst100Words && offset === 0) {
-            return match;
-          }
-          
-          // Replace excess occurrences
-          if (replaced < excess) {
-            const semantic = semanticKeywords[replaced % semanticKeywords.length];
-            replaced++;
-            return semantic;
-          }
-          return match;
-        });
-      }
-      
-      processedLines.push(processedLine);
+    if (semanticKeywords.length === 0) {
+      console.log(`[PreValidation] No semantic keywords found for "${primaryKeyword}", skipping adjustment`);
+      return content;
     }
     
-    adjusted = processedLines.join('\n');
+    const excess = currentCount - maxOccurrences;
+    let replaced = 0;
+    let occurrenceIndex = 0;
+    
+    // Find first 100 words to preserve keyword there
+    const words = content.split(/\s+/);
+    const first100Words = words.slice(0, 100).join(' ');
+    const first100WordsLower = first100Words.toLowerCase();
+    const keywordInFirst100 = first100WordsLower.includes(keywordLower);
+    
+    // Replace excess occurrences, keeping first 2 and any in first 100 words
+    const adjusted = content.replace(keywordRegex, (match, offset) => {
+      occurrenceIndex++;
+      const beforeMatch = content.substring(0, offset);
+      const beforeMatchLower = beforeMatch.toLowerCase();
+      
+      // Check if this is in a heading (don't replace)
+      const lineStart = beforeMatch.lastIndexOf('\n');
+      const line = content.substring(Math.max(0, lineStart), offset + match.length);
+      if (line.trim().startsWith('#') || line.trim().startsWith('##') || line.trim().startsWith('###')) {
+        return match; // Keep keyword in headings
+      }
+      
+      // Keep first 2 occurrences
+      if (occurrenceIndex <= 2) {
+        return match;
+      }
+      
+      // Keep if in first 100 words (if keyword appears there)
+      if (keywordInFirst100 && beforeMatch.split(/\s+/).length < 100) {
+        return match;
+      }
+      
+      // Replace excess occurrences
+      if (replaced < excess) {
+        const semantic = semanticKeywords[replaced % semanticKeywords.length];
+        replaced++;
+        return semantic;
+      }
+      
+      return match;
+    });
     
     if (replaced > 0) {
       console.log(`[PreValidation] Reduced keyword "${primaryKeyword}" from ${currentCount} to ${currentCount - replaced} occurrences`);
+    } else {
+      console.log(`[PreValidation] Keyword "${primaryKeyword}" appears ${currentCount} times (max: ${maxOccurrences}), but replacement logic didn't work`);
     }
     
     return adjusted;
