@@ -427,20 +427,32 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         }
         
         // Calculate how many paragraphs we need to add (target: 1200 words, each paragraph ~50 words)
+        // Add extra paragraphs to ensure we exceed the minimum
         const wordsNeeded = 1200 - wordCount;
-        const paragraphsNeeded = Math.ceil(wordsNeeded / 50);
+        const paragraphsNeeded = Math.ceil(wordsNeeded / 40) + 3; // Add 3 extra paragraphs to ensure we exceed minimum
         const paragraphsToAdd = contextualParagraphs.slice(0, Math.min(paragraphsNeeded, contextualParagraphs.length));
         
-        if (paragraphsToAdd.length > 0) {
-          if (insertIndex > 0 && sections[insertIndex - 1]?.trim().startsWith("##")) {
-            // Insert after the last heading
-            sections.splice(insertIndex, 0, "", ...paragraphsToAdd);
-          } else {
-            // Insert with a heading
+        // Always add paragraphs if we have any to add
+        if (paragraphsToAdd.length > 0 && insertIndex >= 0) {
+          // Insert with a heading if we don't already have one nearby
+          const hasHeadingNearby = insertIndex > 0 && sections[insertIndex - 1]?.trim().startsWith("##");
+          if (!hasHeadingNearby) {
             sections.splice(insertIndex, 0, "", "## Strategic Implications", ...paragraphsToAdd);
+          } else {
+            sections.splice(insertIndex, 0, "", ...paragraphsToAdd);
           }
           blogContent = sections.join("\n\n");
           wordCount = blogContent.split(/\s+/).length;
+          
+          // If still short, add more paragraphs
+          if (wordCount < 1200 && paragraphs.length > 0) {
+            const remainingParagraphs = paragraphs.slice(Math.min(33, paragraphs.length), Math.min(50, paragraphs.length));
+            if (remainingParagraphs.length > 0) {
+              sections.splice(insertIndex + paragraphsToAdd.length + 2, 0, "", ...remainingParagraphs);
+              blogContent = sections.join("\n\n");
+              wordCount = blogContent.split(/\s+/).length;
+            }
+          }
         }
       }
     }

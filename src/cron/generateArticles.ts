@@ -125,9 +125,18 @@ export async function generateArticles(): Promise<void> {
                catLower.includes("technology") || catLower.includes("development");
       });
       
-      // Only proceed if there's STRONG alignment with core topics
+      // Check if title contains strong keywords (for articles where title is more descriptive than content)
+      const titleLower = (item.title || "").toLowerCase();
+      const titleHasStrongKeyword = titleLower.includes("ai agent") || 
+                                    titleLower.includes("ai software") ||
+                                    titleLower.includes("openai") ||
+                                    titleLower.includes("app development") ||
+                                    titleLower.includes("digital transformation") ||
+                                    (titleLower.includes("ai") && (titleLower.includes("tool") || titleLower.includes("platform") || titleLower.includes("system")));
+      
+      // Only proceed if there's STRONG alignment with core topics (in content or title)
       // Require explicit strong alignment - no secondary indicators or weak matches
-      if (!hasStrongAlignment) {
+      if (!hasStrongAlignment && !titleHasStrongKeyword) {
         console.log(`[Pipeline] ⚠️  Skipping article - doesn't align with core topics (AI software, Digital transformation, App development, Workforce automation, Emerging technology strategy): ${item.title}`);
         continue; // Skip this article
       }
