@@ -223,8 +223,9 @@ function determineTopic(content: string, categories?: string[]): string {
     return "Culture";
   }
 
-  // If no match found, return "AI" as default (but log a warning)
-  console.warn(`[Code] No topic match found for content. Using default "AI". Consider filtering out articles that don't match our topics.`);
+  // If no match found, this should not have passed filtering - return a safe default but log error
+  console.error(`[Code] ERROR: No topic match found for content. This article should have been filtered out. Content: ${content.substring(0, 100)}...`);
+  // Return "AI" as fallback, but this indicates a filtering issue
   return "AI";
 }
 

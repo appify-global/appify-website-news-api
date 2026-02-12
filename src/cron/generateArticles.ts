@@ -104,8 +104,8 @@ export async function generateArticles(): Promise<void> {
       });
       
       // Only proceed if there's STRONG alignment with core topics
-      // Also allow if secondary alignment + relevant category (for articles like "AI Agent" that are clearly AI-related)
-      if (!hasStrongAlignment && !hasRelevantCategory && !(hasSecondaryAlignment && (itemContent.includes("ai") || itemContent.includes("software") || itemContent.includes("automation") || itemContent.includes("app") || itemContent.includes("digital")))) {
+      // Require explicit strong alignment - no secondary indicators or weak matches
+      if (!hasStrongAlignment) {
         console.log(`[Pipeline] ⚠️  Skipping article - doesn't align with core topics (AI software, Digital transformation, App development, Workforce automation, Emerging technology strategy): ${item.title}`);
         continue; // Skip this article
       }
