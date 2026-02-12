@@ -526,6 +526,14 @@ function generateTopicSpecificHeadings(coreConcept: string, title: string, conte
 function makeContentEvergreen(content: string): string {
   let result = content;
   
+  // Step 0: Fix broken percentage notations like "[95)" to "(95%)"
+  result = result
+    .replace(/\[(\d+)\)/g, '($1%)') // Fix [95) to (95%)
+    .replace(/\[(\d+)\]/g, '($1%)') // Fix [95] to (95%)
+    .replace(/\((\d+)\)/g, '($1%)') // Fix (95) to (95%) if not already
+    .replace(/\b(\d+)\s*percent\b/gi, '$1%') // Normalize "95 percent" to "95%"
+    .replace(/\b(\d+)\s*%\b/g, '$1%'); // Normalize spacing
+  
   // Step 1: Remove quotes and attributions
   result = removeQuotes(result);
   
@@ -981,29 +989,29 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
       let sectionWordCount = 0;
       let tempParaIndex = paraIndex;
       let attempts = 0;
-      const maxAttempts = paragraphs.length * 3; // Prevent infinite loop
+      const maxAttempts = paragraphs.length * 5; // Prevent infinite loop, but allow more attempts
       
-      // Collect paragraphs until we meet minimums
+      // Collect paragraphs until we meet minimums - be LESS strict overall
       while ((sectionParagraphs.length < minParagraphs || sectionWordCount < minWords) && tempParaIndex < paragraphs.length && attempts < maxAttempts) {
         attempts++;
         const p = paragraphs[tempParaIndex++];
         
-        // Skip if it's generic filler or broken
+        // Only skip if it's clearly broken or generic filler
         if (isGenericFiller(p) || isBrokenParagraph(p)) continue;
         
-        // Skip if it has quotes or news fragments (but be less strict if we're running low on content)
-        const remainingParagraphs = paragraphs.length - tempParaIndex;
-        const isLowOnContent = remainingParagraphs < 15;
+        // Skip newsletter references (always)
+        if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(p)) continue;
         
-        if (!isLowOnContent) {
-          // Strict filtering when we have plenty of content
-          if (/"[^"]{20,}"/.test(p) || /\b(said|says|according to|told|stated|quoted|in an interview)\b/i.test(p)) continue;
-          if (/\b(announced|reported|revealed|in an interview|in a statement)\b/i.test(p)) continue;
-          if (/\b(subscribe|newsletter|sign up|e-newsletter)\b/i.test(p)) continue;
-        } else {
-          // Less strict when running low - only skip obvious issues
-          if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(p)) continue;
+        // Only filter quotes/news fragments if we have LOTS of content remaining
+        const remainingParagraphs = paragraphs.length - tempParaIndex;
+        const hasLotsOfContent = remainingParagraphs > 30;
+        
+        if (hasLotsOfContent) {
+          // Only then be strict about quotes and news fragments
+          if (/"[^"]{30,}"/.test(p)) continue; // Only skip very long quotes
+          if (/\b(in an interview|in a statement|according to sources)\b/i.test(p)) continue; // Skip obvious attribution phrases
         }
+        // Otherwise, be lenient - use the content!
         
         const fingerprint = getParagraphFingerprint(p);
         if (addedParagraphFingerprints.has(fingerprint)) continue;
@@ -1012,13 +1020,13 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         sectionWordCount += p.split(/\s+/).length;
       }
       
-      // Only add section if we have at least some content (or if it's required)
-      if (sectionParagraphs.length === 0 && required) {
-        // For required sections, add whatever we can find (be very lenient)
-        tempParaIndex = paraIndex; // Reset to start
+      // If we still don't have enough and it's required, be VERY lenient
+      if (sectionParagraphs.length < minParagraphs && required) {
+        tempParaIndex = paraIndex; // Start from current position
         while (tempParaIndex < paragraphs.length && sectionParagraphs.length < minParagraphs) {
           const p = paragraphs[tempParaIndex++];
-          if (isGenericFiller(p) || isBrokenParagraph(p)) continue;
+          // Only skip if it's clearly broken or newsletter
+          if (isBrokenParagraph(p)) continue;
           if (/\b(subscribe|newsletter|sign up|e-newsletter|digital nation)\b/i.test(p)) continue;
           const fingerprint = getParagraphFingerprint(p);
           if (addedParagraphFingerprints.has(fingerprint)) continue;
