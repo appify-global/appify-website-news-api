@@ -129,6 +129,14 @@ Generate the article now using the blueprint structure. Output ONLY the article 
   content = content.replace(/```[a-z]*\s*/gi, "");
   content = content.replace(/```\s*/g, "");
   
+  // Remove bullet points and checklists - convert to paragraphs
+  // Remove markdown bullet points (-, *, •)
+  content = content.replace(/^[\s]*[-*•]\s+/gm, "");
+  // Remove numbered lists
+  content = content.replace(/^\d+\.\s+/gm, "");
+  // Remove any remaining list markers
+  content = content.replace(/^[\s]*[•◦▪▫]\s+/gm, "");
+  
   // Remove common AI explanation patterns
   content = content.replace(/^(Here's|Here is|This article|This content|The following|Below is).*?:\s*/gim, "");
   content = content.replace(/^(I'll|I will|Let me|I'm going to).*?\.\s*/gim, "");
