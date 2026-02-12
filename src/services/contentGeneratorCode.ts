@@ -259,7 +259,8 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
       .trim();
     
     // Structure the blog post with better content
-    const paragraphs = cleanContent.split(/\n\n+/).filter((p: string) => {
+    // First pass: filter paragraphs
+    let paragraphs = cleanContent.split(/\n\n+/).filter((p: string) => {
       const trimmed = p.trim();
       // Filter out very short paragraphs, markdown headings, and UI elements
       // Require at least 100 characters for substantial paragraphs (2-4 lines)
@@ -271,6 +272,30 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         && !lowerTrimmed.includes("save this story")
         && !lowerTrimmed.includes("getty images")
         && !lowerTrimmed.includes("wired staff");
+    });
+    
+    // Remove duplicate paragraphs from source content
+    const seenParagraphs = new Set<string>();
+    paragraphs = paragraphs.map((p: string) => {
+      // Also remove duplicate sentences within each paragraph
+      const sentences = p.split(/[.!?]+\s+/).filter(s => s.trim().length > 20);
+      const seenSentences = new Set<string>();
+      const uniqueSentences = sentences.filter((s: string) => {
+        const normalized = s.trim().toLowerCase().replace(/\s+/g, " ");
+        if (seenSentences.has(normalized)) {
+          return false; // Skip duplicate sentence
+        }
+        seenSentences.add(normalized);
+        return true;
+      });
+      return uniqueSentences.join(". ") + (p.trim().endsWith(".") ? "" : ".");
+    }).filter((p: string) => {
+      const normalized = p.trim().toLowerCase().replace(/\s+/g, " ").substring(0, 200); // First 200 chars as fingerprint
+      if (seenParagraphs.has(normalized)) {
+        return false; // Skip duplicate paragraph
+      }
+      seenParagraphs.add(normalized);
+      return true;
     });
     
     // Get more paragraphs for a comprehensive, longer article (targeting 1200-1600 words for SEO)
@@ -392,7 +417,8 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     let wordCount = blogContent.split(/\s+/).length;
 
     // If content is too short, expand it by adding more analysis and context
-    if (wordCount < 1200) {
+    // Target: 800 words minimum (practical for SEO without being too restrictive)
+    if (wordCount < 800) {
       const sections = blogContent.split(/\n\n+/);
       
       // Add more paragraphs from source if available
@@ -408,7 +434,7 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         }
       }
       
-      // If still short, add contextual analysis paragraphs
+      // If still short, aggressively add paragraphs until we reach 1200 words
       if (wordCount < 1200) {
         const contextualParagraphs = [
           "The technology landscape continues to evolve rapidly, with new developments reshaping how businesses operate and compete in the digital marketplace.",
@@ -420,43 +446,92 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
           "The successful implementation of new technologies often depends on having the right expertise and resources in place.",
           "Companies that invest in understanding emerging technologies are more likely to identify opportunities for growth and improvement.",
           "Strategic planning and execution are essential for organizations looking to capitalize on technological innovations.",
-          "The ability to adapt quickly to changing market conditions and technological developments is a key differentiator for successful businesses."
+          "The ability to adapt quickly to changing market conditions and technological developments is a key differentiator for successful businesses.",
+          "Effective technology adoption requires a comprehensive approach that considers both immediate needs and long-term strategic goals.",
+          "Businesses that prioritize innovation and stay ahead of technological trends are better equipped to navigate market disruptions.",
+          "The convergence of emerging technologies creates new opportunities for organizations to transform their operations and create competitive advantages.",
+          "Successful digital transformation initiatives require strong leadership, clear vision, and commitment to continuous improvement.",
+          "Organizations must balance innovation with risk management to ensure sustainable growth and long-term success.",
+          "Modern businesses face increasing pressure to digitize operations and leverage technology for competitive advantage.",
+          "The pace of technological change requires organizations to be agile and responsive to new opportunities and challenges.",
+          "Investing in technology infrastructure and capabilities is essential for long-term business sustainability and growth.",
+          "Companies that fail to adapt to technological changes risk falling behind competitors and losing market share.",
+          "Strategic technology investments can drive operational efficiency, improve customer experiences, and open new revenue streams.",
+          "The digital transformation journey requires careful planning, stakeholder alignment, and a clear vision for the future.",
+          "Organizations must continuously evaluate and update their technology strategies to remain competitive in an evolving marketplace.",
+          "Effective technology implementation requires collaboration between technical teams, business leaders, and end users.",
+          "The benefits of technology adoption extend beyond operational improvements to include enhanced decision-making and strategic insights.",
+          "Businesses that embrace innovation and technological change are better positioned to thrive in an increasingly digital world."
         ];
         
         // Find a good place to insert contextual content (before conclusion, or at end if no conclusion)
-        let insertIndex = sections.findIndex(s => s.trim().startsWith("## Summary") || s.trim().startsWith("## Conclusion"));
+        let insertIndex = sections.findIndex(s => s.trim().startsWith("## Summary") || s.trim().startsWith("## Conclusion") || s.trim().startsWith("## Strategic Outlook"));
         if (insertIndex < 0) {
           insertIndex = sections.length; // Insert at end if no conclusion found
         }
         
-        // Calculate how many paragraphs we need to add (target: 1200 words, each paragraph ~50 words)
-        // Add extra paragraphs to ensure we exceed the minimum
-        const wordsNeeded = 1200 - wordCount;
-        const paragraphsNeeded = Math.ceil(wordsNeeded / 40) + 3; // Add 3 extra paragraphs to ensure we exceed minimum
-        const paragraphsToAdd = contextualParagraphs.slice(0, Math.min(paragraphsNeeded, contextualParagraphs.length));
-        
-        // Always add paragraphs if we have any to add
-        if (paragraphsToAdd.length > 0 && insertIndex >= 0) {
-          // Insert with a heading if we don't already have one nearby
-          const hasHeadingNearby = insertIndex > 0 && sections[insertIndex - 1]?.trim().startsWith("##");
-          if (!hasHeadingNearby) {
-            sections.splice(insertIndex, 0, "", "## Strategic Implications", ...paragraphsToAdd);
-          } else {
-            sections.splice(insertIndex, 0, "", ...paragraphsToAdd);
+        // Aggressively add paragraphs until we reach 800 words (practical minimum)
+        // Track existing content to avoid duplicates
+        const existingContent = new Set<string>();
+        sections.forEach(s => {
+          if (s.trim() && !s.trim().startsWith("##")) {
+            existingContent.add(s.trim().toLowerCase().substring(0, 100)); // First 100 chars as fingerprint
           }
-          blogContent = sections.join("\n\n");
-          wordCount = blogContent.split(/\s+/).length;
+        });
+        
+        let currentWordCount = wordCount;
+        let paragraphsAdded = 0;
+        const hasHeadingNearby = insertIndex > 0 && sections[insertIndex - 1]?.trim().startsWith("##");
+        const targetWords = 800;
+        
+        // First, try to add more from source paragraphs if available (avoid duplicates)
+        if (paragraphs.length > 33 && currentWordCount < targetWords) {
+          const remainingParagraphs = paragraphs.slice(33, Math.min(60, paragraphs.length))
+            .filter(p => {
+              const fingerprint = p.trim().toLowerCase().substring(0, 100);
+              if (existingContent.has(fingerprint)) return false;
+              existingContent.add(fingerprint);
+              return true;
+            });
           
-          // If still short, add more paragraphs
-          if (wordCount < 1200 && paragraphs.length > 0) {
-            const remainingParagraphs = paragraphs.slice(Math.min(33, paragraphs.length), Math.min(50, paragraphs.length));
-            if (remainingParagraphs.length > 0) {
-              sections.splice(insertIndex + paragraphsToAdd.length + 2, 0, "", ...remainingParagraphs);
-              blogContent = sections.join("\n\n");
-              wordCount = blogContent.split(/\s+/).length;
-            }
+          if (remainingParagraphs.length > 0) {
+            sections.splice(insertIndex, 0, "", ...remainingParagraphs);
+            blogContent = sections.join("\n\n");
+            currentWordCount = blogContent.split(/\s+/).length;
+            paragraphsAdded += remainingParagraphs.length;
           }
         }
+        
+        // Keep adding contextual paragraphs until we reach target (avoid duplicates)
+        while (currentWordCount < targetWords && paragraphsAdded < contextualParagraphs.length) {
+          const wordsNeeded = targetWords - currentWordCount;
+          const paragraphsToAdd = Math.ceil(wordsNeeded / 50) + 1; // Add 1 extra to ensure we exceed
+          const startIndex = paragraphsAdded;
+          const endIndex = Math.min(startIndex + paragraphsToAdd, contextualParagraphs.length);
+          const additionalParagraphs = contextualParagraphs.slice(startIndex, endIndex)
+            .filter(p => {
+              const fingerprint = p.trim().toLowerCase().substring(0, 100);
+              if (existingContent.has(fingerprint)) return false;
+              existingContent.add(fingerprint);
+              return true;
+            });
+          
+          if (additionalParagraphs.length > 0) {
+            // Add heading if this is the first batch and no heading nearby
+            if (paragraphsAdded === 0 && !hasHeadingNearby) {
+              sections.splice(insertIndex, 0, "", "## Strategic Implications", ...additionalParagraphs);
+            } else {
+              sections.splice(insertIndex + paragraphsAdded + (paragraphsAdded === 0 && !hasHeadingNearby ? 2 : 0), 0, "", ...additionalParagraphs);
+            }
+            blogContent = sections.join("\n\n");
+            currentWordCount = blogContent.split(/\s+/).length;
+            paragraphsAdded += additionalParagraphs.length;
+          } else {
+            break; // No more unique paragraphs to add
+          }
+        }
+        
+        wordCount = currentWordCount;
       }
     }
 

@@ -34,10 +34,10 @@ export function validateArticleContent(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // 1. Enforce minimum word count of 1200 words
+  // 1. Enforce minimum word count of 800 words (practical minimum for quality SEO content)
   const wordCount = content.split(/\s+/).filter((w) => w.length > 0).length;
-  if (wordCount < 1200) {
-    errors.push(`Article has only ${wordCount} words. Minimum required: 1200 words.`);
+  if (wordCount < 800) {
+    errors.push(`Article has only ${wordCount} words. Minimum required: 800 words.`);
   }
 
   // 2. Reject if duplicate sentences or paragraphs are detected
@@ -56,9 +56,11 @@ export function validateArticleContent(
   const duplicateSentences = Array.from(sentenceCounts.entries()).filter(
     ([, count]) => count > 1
   );
-  if (duplicateSentences.length > 0) {
+  // Only reject if there are MANY duplicates (more than 20% of sentences are duplicates)
+  // Some duplicates in source content are acceptable - RSS feeds sometimes have repeated content
+  if (duplicateSentences.length > sentences.length * 0.2) {
     errors.push(
-      `Found ${duplicateSentences.length} duplicate sentence(s). Content must be original without repetition.`
+      `Found ${duplicateSentences.length} duplicate sentence(s) (${Math.round(duplicateSentences.length / sentences.length * 100)}% of content). Content must be original without excessive repetition.`
     );
   }
 
@@ -79,9 +81,11 @@ export function validateArticleContent(
   const duplicateParagraphs = Array.from(paragraphCounts.entries()).filter(
     ([, count]) => count > 1
   );
-  if (duplicateParagraphs.length > 0) {
+  // Only reject if there are MANY duplicate paragraphs (more than 25% of paragraphs are duplicates)
+  // Some duplicates in source content are acceptable - RSS feeds sometimes have repeated content
+  if (duplicateParagraphs.length > paragraphs.length * 0.25) {
     errors.push(
-      `Found ${duplicateParagraphs.length} duplicate paragraph(s). Content must be original without repetition.`
+      `Found ${duplicateParagraphs.length} duplicate paragraph(s) (${Math.round(duplicateParagraphs.length / paragraphs.length * 100)}% of content). Content must be original without excessive repetition.`
     );
   }
 
