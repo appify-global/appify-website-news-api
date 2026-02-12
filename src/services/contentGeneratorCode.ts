@@ -199,6 +199,71 @@ function extractKeyConcepts(content: string, title: string): string[] {
  * Filter out time-based openings and news-style starts
  */
 /**
+ * Check if sentence is complete and valid
+ */
+function isValidSentence(sentence: string): boolean {
+  const trimmed = sentence.trim();
+  if (trimmed.length < 10) return false;
+  
+  // Must end with punctuation
+  if (!/[.!?]\s*$/.test(trimmed)) return false;
+  
+  // Must have enough words
+  const words = trimmed.split(/\s+/);
+  if (words.length < 3) return false;
+  
+  // Filter out incomplete fragments
+  const incompletePatterns = [
+    /^as\s+\w+\s+\w+\s*\.$/i, // "As internal usage grows."
+    /^[A-Z][a-z]+\s+(a|an|the)\s+\w+\s*\.$/i, // "AMP a statutory net profit."
+    /^[A-Z][a-z]+\s*\.\s*$/i, // "She." or "George."
+    /^[A-Z][a-z]+\s+[A-Z][a-z]+\s*\.\s*$/i, // "CEO Alexis."
+  ];
+  
+  if (incompletePatterns.some(pattern => pattern.test(trimmed))) return false;
+  
+  return true;
+}
+
+/**
+ * Clean up broken sentences in a paragraph
+ */
+function cleanBrokenSentences(paragraph: string): string {
+  // Split by sentence boundaries
+  const parts = paragraph.split(/([.!?]+\s*)/);
+  const validSentences: string[] = [];
+  let currentSentence = '';
+  
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    
+    if (/[.!?]+\s*$/.test(part)) {
+      // This is punctuation
+      currentSentence += part;
+      const fullSentence = currentSentence.trim();
+      
+      if (isValidSentence(fullSentence)) {
+        validSentences.push(fullSentence);
+      }
+      // Otherwise, discard the broken sentence
+      currentSentence = '';
+    } else {
+      currentSentence += part;
+    }
+  }
+  
+  // Handle any remaining text
+  if (currentSentence.trim().length > 0) {
+    const trimmed = currentSentence.trim();
+    if (isValidSentence(trimmed + '.')) {
+      validSentences.push(trimmed + '.');
+    }
+  }
+  
+  return validSentences.join(' ').trim();
+}
+
+/**
  * Normalize quotes safely without breaking sentences
  * Converts curly quotes, removes attribution fragments, but keeps sentences intact
  */
@@ -212,24 +277,33 @@ function normalizeQuotes(content: string): string {
     .replace(/['']/g, "'")  // Left single quote
     .replace(/['']/g, "'"); // Right single quote
   
-  // Step 2: Remove dangling attribution fragments WITHOUT deleting full sentences
-  // Remove standalone attribution phrases that appear at sentence boundaries
+  // Step 2: Fix dangling attributions like "she." or "George." or "CEO Alexis."
+  result = result
+    .replace(/\b([A-Z][a-z]+)\s*\.\s*$/gm, '') // Remove standalone names at end of line
+    .replace(/\b(she|he|they|it)\s*\.\s*$/gmi, '') // Remove standalone pronouns
+    .replace(/\b([A-Z][a-z]+\s+[A-Z][a-z]+)\s*\.\s*$/gm, '') // Remove "CEO Alexis" type patterns
+    .replace(/\b(said|says|stated|told)\s*\.\s*$/gmi, ''); // Remove standalone attribution verbs
+  
+  // Step 3: Remove attribution phrases more carefully
   result = result
     .replace(/\s+(said|says|according to|told|stated|quoted|in an interview|in a statement)\s*[.!?]/gi, '.')
-    .replace(/\([^)]*\b(said|says|according to|told|stated|quoted)\b[^)]*\)/gi, '') // Remove parenthetical attributions
-    .replace(/\[[^\]]*\b(said|says|according to|told|stated|quoted)\b[^\]]*\]/gi, ''); // Remove bracketed attributions
+    .replace(/\([^)]*\b(said|says|according to|told|stated|quoted)\b[^)]*\)/gi, '')
+    .replace(/\[[^\]]*\b(said|says|according to|told|stated|quoted)\b[^\]]*\]/gi, '');
   
-  // Step 3: If a sentence contains a quote, keep the sentence but remove quote marks only
-  // Don't remove the entire quoted content, just clean up the marks
+  // Step 4: Remove quote marks but keep content
   result = result
-    .replace(/"([^"]{10,})"/g, '$1') // Remove quote marks but keep content (min 10 chars to avoid removing single words)
-    .replace(/'([^']{10,})'/g, '$1'); // Same for single quotes
+    .replace(/"([^"]{10,})"/g, '$1')
+    .replace(/'([^']{10,})'/g, '$1');
   
-  // Step 4: Clean up any double spaces or punctuation artifacts
+  // Step 5: Clean up broken sentences
+  result = cleanBrokenSentences(result);
+  
+  // Step 6: Final cleanup
   result = result
     .replace(/\s{2,}/g, ' ')
     .replace(/\.\s*\./g, '.')
     .replace(/,\s*,/g, ',')
+    .replace(/\s+\./g, '.') // Remove space before period
     .trim();
   
   return result;
@@ -798,7 +872,37 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
       return true;
     });
     
-    // Filter out time-based openings (Rule 1)
+    // Clean all paragraphs: normalize quotes and remove broken sentences
+    paragraphs = paragraphs.map(p => {
+      let cleaned = normalizeQuotes(p);
+      cleaned = cleanBrokenSentences(cleaned);
+      return cleaned;
+    }).filter(p => {
+      // Ensure paragraph has at least one valid sentence
+      const trimmed = p.trim();
+      if (trimmed.length < 25) return false;
+      
+      // Check if it has at least one valid sentence
+      const sentences = trimmed.split(/[.!?]+/).filter(s => s.trim().length > 10);
+      return sentences.some(s => isValidSentence(s.trim() + '.'));
+    });
+    
+    // Clean all paragraphs: normalize quotes and remove broken sentences
+    paragraphs = paragraphs.map(p => {
+      let cleaned = normalizeQuotes(p);
+      cleaned = cleanBrokenSentences(cleaned);
+      return cleaned;
+    }).filter(p => {
+      // Ensure paragraph has at least one valid sentence
+      const trimmed = p.trim();
+      if (trimmed.length < 25) return false;
+      
+      // Check if it has at least one valid sentence
+      const sentences = trimmed.split(/[.!?]+/).filter(s => s.trim().length > 10);
+      return sentences.some(s => isValidSentence(s.trim() + '.'));
+    });
+    
+    // Filter out time-based openings (Rule 1) - but be lenient
     paragraphs = filterTimeBasedOpenings(paragraphs);
     
     // Extract core concept for primary keyword (Rule 3)
@@ -966,11 +1070,11 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     }
     
     // Add example paragraphs after, clearly labeled with plain text
-    // Rule: Max 2-3 sentences total for company examples
+    // Rule: Max 1-2 sentences total for company examples (like OpenAI version - brief and concise)
     if (exampleParagraphs.length > 0) {
       blogSections.push("", "Example:");
       let exampleSentenceCount = 0;
-      const maxExampleSentences = 3;
+      const maxExampleSentences = 2; // Changed from 3 to 2 (like OpenAI - brief examples)
       
       for (const p of exampleParagraphs) {
         if (exampleSentenceCount >= maxExampleSentences) break;
@@ -978,12 +1082,24 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         const fingerprint = getParagraphFingerprint(p);
         if (addedParagraphFingerprints.has(fingerprint)) continue;
         
-        const sentences = p.split(/[.!?]+/).filter(s => s.trim().length > 10);
+        // Clean the paragraph first
+        let cleaned = normalizeQuotes(p);
+        cleaned = cleanBrokenSentences(cleaned);
+        
+        // Extract valid sentences only
+        const sentences = cleaned.split(/[.!?]+/)
+          .map(s => s.trim())
+          .filter(s => s.length > 10)
+          .filter(s => isValidSentence(s + '.'));
+        
         const sentencesToAdd = Math.min(sentences.length, maxExampleSentences - exampleSentenceCount);
         
         if (sentencesToAdd > 0) {
-          // Take only the needed sentences
-          const trimmedParagraph = sentences.slice(0, sentencesToAdd).join(". ") + ".";
+          // Take only the needed sentences and make them concise
+          const trimmedParagraph = sentences.slice(0, sentencesToAdd)
+            .map(s => s.trim())
+            .join('. ') + '.';
+          
           blogSections.push(trimmedParagraph);
           addedParagraphFingerprints.add(fingerprint);
           totalWords += trimmedParagraph.split(/\s+/).length;
