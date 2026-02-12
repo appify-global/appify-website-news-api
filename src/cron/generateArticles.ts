@@ -19,13 +19,13 @@ import slugify from "slugify";
 /**
  * Generation Mode Selection:
  * 
- * DEFAULT: Code-based generation (no OpenAI required)
- * Set USE_OPENAI=true to use OpenAI generation (requires OPENAI_API_KEY)
+ * DEFAULT: OpenAI generation (requires OPENAI_API_KEY)
+ * Set USE_CODE_GENERATION=true to use code-based generation (no OpenAI required)
  * 
- * Code version: Faster, no API costs, uses RSS content extraction (DEFAULT)
- * OpenAI version: Higher quality, more creative, requires API key (OPTIONAL)
+ * OpenAI version: Higher quality, more creative, requires API key (DEFAULT)
+ * Code version: Faster, no API costs, uses RSS content extraction (OPTIONAL)
  */
-const USE_CODE_GENERATION = process.env.USE_OPENAI !== "true"; // Default to code-based, only use OpenAI if explicitly enabled
+const USE_CODE_GENERATION = process.env.USE_CODE_GENERATION === "true"; // Default to OpenAI, only use code-based if explicitly enabled
 
 // Select functions based on environment variable
 // Both versions are available - just switch the flag to toggle

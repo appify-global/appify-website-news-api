@@ -54,11 +54,13 @@ Only output valid HTML — no labels, commentary, or non-HTML content.`,
   }
 
   // Clean up any stray content from OpenAI
-  // Remove markdown code blocks (```html, ```)
-  htmlContent = htmlContent.replace(/```html\s*/gi, "");
+  // Remove markdown code blocks (```html, ```, ```markdown, etc.)
+  htmlContent = htmlContent.replace(/```[a-z]*\s*/gi, "");
   htmlContent = htmlContent.replace(/```\s*/g, "");
   
-  // Remove any explanations before/after HTML (common OpenAI behavior)
+  // Remove any AI explanations before/after HTML
+  htmlContent = htmlContent.replace(/^(Here's|Here is|This is|The following|Below is|I'll|I will).*?:\s*/gim, "");
+  
   // Find the first < and last > to extract only HTML content
   const firstTag = htmlContent.indexOf("<");
   const lastTag = htmlContent.lastIndexOf(">");
@@ -78,6 +80,13 @@ Only output valid HTML — no labels, commentary, or non-HTML content.`,
   htmlContent = htmlContent.replace(/<script[\s\S]*?<\/script>/gi, "");
   htmlContent = htmlContent.replace(/<style[\s\S]*?<\/style>/gi, "");
   
+  // Remove any markdown that might have slipped through
+  htmlContent = htmlContent.replace(/##\s+/g, ""); // Remove markdown H2
+  htmlContent = htmlContent.replace(/###\s+/g, ""); // Remove markdown H3
+  htmlContent = htmlContent.replace(/\*\*([^*]+)\*\*/g, "$1"); // Remove bold markdown
+  htmlContent = htmlContent.replace(/\*([^*]+)\*/g, "$1"); // Remove italic markdown
+  htmlContent = htmlContent.replace(/`([^`]+)`/g, "$1"); // Remove inline code markdown
+  
   // Remove inline styles from all tags (especially headings)
   htmlContent = htmlContent.replace(/\s+style="[^"]*"/gi, "");
   htmlContent = htmlContent.replace(/\s+style='[^']*'/gi, "");
@@ -85,6 +94,13 @@ Only output valid HTML — no labels, commentary, or non-HTML content.`,
   // Remove font-size, size, and other sizing attributes
   htmlContent = htmlContent.replace(/\s+font-size="[^"]*"/gi, "");
   htmlContent = htmlContent.replace(/\s+size="[^"]*"/gi, "");
+  
+  // Remove any stray HTML tags that aren't allowed (div, span, etc.)
+  htmlContent = htmlContent.replace(/<div[^>]*>/gi, "");
+  htmlContent = htmlContent.replace(/<\/div>/gi, "");
+  htmlContent = htmlContent.replace(/<span[^>]*>/gi, "");
+  htmlContent = htmlContent.replace(/<\/span>/gi, "");
+  htmlContent = htmlContent.replace(/<h1[^>]*>.*?<\/h1>/gi, ""); // Remove H1 tags
 
   console.log("[OpenAI] HTML conversion complete.");
   return htmlContent.trim();
