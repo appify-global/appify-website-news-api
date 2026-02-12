@@ -24,12 +24,32 @@ export async function optimizeForSEO(blogContent: string): Promise<SEOResult> {
 
   const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
-    temperature: 1,
-    max_tokens: 8000, // Increased for longer optimized content
+    temperature: 0.8,
+    max_tokens: 4000, // For 1,200-1,600 word articles
     messages: [
       {
         role: "system",
-        content: `Instruction 1: Make this blog post SEO-friendly by selecting and including 15-20 target keywords that are relevant to app development, AI software, and digital transformation. Include BOTH primary and long-tail keywords:
+        content: `Optimize this blog post for long-term SEO authority. Focus on quality over quantity. Target stable search intent and build topical authority.
+
+Instruction 1: Identify and optimize for ONE clear primary keyword plus 3-5 relevant long-tail variations. Choose keywords that:
+- Align with our core topics (AI software, Digital transformation, App development, Workforce automation, Emerging technology strategy)
+- Target stable, long-term search intent
+- Have realistic ranking potential
+- Match the article's actual content
+
+Primary keyword examples:
+- AI app development
+- Digital transformation strategy
+- Mobile app development
+- Workforce automation solutions
+- Technology adoption strategy
+
+Long-tail variations (3-5 only):
+- How to implement [primary keyword]
+- Best practices for [primary keyword]
+- [Primary keyword] for businesses
+- [Primary keyword] benefits
+- [Primary keyword] implementation guide
 
 **Primary Keywords** (high volume, competitive):
 - app development company
@@ -61,34 +81,37 @@ export async function optimizeForSEO(blogContent: string): Promise<SEOResult> {
 
 Choose keywords with realistic ranking potential based on search intent and relevance to the Australian tech market.
 
-Instruction 2: Use the **primary keyword** with a density of approximately 1–3% throughout the blog content (8-12 times in a 3000-4000 word article). It should appear naturally in:
-- The blog title (H1)
+Instruction 2: Use the **primary keyword** naturally throughout (approximately 1-2% density, or 12-32 times in a 1,200-1,600 word article). It should appear:
+- In the blog title (H1)
 - Within the first 100 words
-- In at least 4-5 subheadings (H2 or H3)
+- In 2-3 subheadings (H2 or H3) - only where natural
 - Throughout body paragraphs
 - In the conclusion
 
-Instruction 3: Distribute long-tail keywords naturally:
-- Each long-tail variation: 3-5 times throughout the article
-- Semantic keywords: 2-3 times each
-- LSI (Latent Semantic Indexing) keywords: naturally throughout
-- Location keywords: 2-3 times if relevant
+Instruction 3: Distribute long-tail keywords naturally (2-3 times each maximum). Avoid keyword stuffing. Quality and natural integration over quantity.
 
-Instruction 4: Maintain a clear structure using H2s and H3s. Make sure at least 5-6 subheadings contain a keyword or close variation. Headings should be descriptive and keyword-rich but natural.
+Instruction 4: Maintain clear structure with H2s and H3s. Headings should be descriptive and natural. Only include keywords in headings when they fit naturally - don't force them.
 
-Instruction 5: Use a tone that is informative, authoritative, and confident, reflecting the voice of a modern, Australian-based app development agency that specialises in AI-driven solutions. Write as though addressing founders, CTOs, and product managers looking to build or improve software products. Establish E-E-A-T (Expertise, Experience, Authoritativeness, Trust) by:
-- Citing authoritative sources (Gartner, McKinsey, industry reports)
-- Including expert insights and data
-- Showing first-hand experience ("At Appify, we've seen...")
-- Providing actionable, practical advice
+Instruction 5: Maintain an authoritative, professional tone. Write for founders, CTOs, and product managers. Establish authority through:
+- Strategic insights and analysis
+- Practical, actionable guidance
+- Industry expertise (without generic filler)
+- Clear, confident writing
 
-Instruction 6: Keep paragraphs concise (3–5 lines), include bullet points or short lists where helpful, and use real-world use cases, statistics, and scenarios to add practical value and authority.
+Instruction 6: 
+- Keep paragraphs concise (3-5 lines)
+- Avoid generic filler sections
+- Avoid repeated phrasing
+- Include practical insights and strategic depth
+- Use bullet points or lists only when they add value
+- NO emojis
+- NO mention of RSS sources or original articles
 
 Instruction 7: At the end of the blog, generate:
 – A meta title (maximum 60 characters) including the primary keyword at the beginning
 – A meta description (maximum 160 characters) summarising the blog with a clear value proposition
 
-Instruction 8: Include 8-12 strategic hyperlinks in the blog:
+Instruction 8: Include 4-6 strategic hyperlinks in the blog (quality over quantity):
 – Use **only the following internal links** if relevant to the topic:
   • /automation
   • /automation/seo
@@ -115,7 +138,7 @@ TOPICS: [one of: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Cultur
       },
       {
         role: "user",
-        content: `Optimise this blog for SEO to dominate search results. Target 15-20 keywords (primary and long-tail), include 8-12 strategic links, and ensure comprehensive depth:\n${blogContent}`,
+        content: `Optimize this blog for long-term SEO authority. Focus on ONE primary keyword plus 3-5 long-tail variations. Ensure content is original, evergreen, and contributes to topical authority. Remove any generic filler, repeated phrasing, or time-sensitive references. Target stable search intent:\n${blogContent}`,
       },
     ],
   });

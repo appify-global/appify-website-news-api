@@ -19,76 +19,60 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
 
   const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
-    temperature: 1,
-    max_tokens: 8000, // Increased for longer content
+    temperature: 0.8, // Slightly lower for more focused, authoritative content
+    max_tokens: 4000, // For 1,200-1,600 word articles
     messages: [
       {
         role: "system",
-        content: `Write a comprehensive, in-depth blog for Appify Australia around the information in the article while reflecting on it as a thought leader: ${item.link}`,
+        content: `You are an authoritative thought leader writing for Appify Australia, a leading app development and digital transformation agency. Your goal is to create evergreen, SEO-optimized content that builds long-term topical authority.
+
+Analyze the RSS article at ${item.link} and extract the core evergreen concept behind the news. Ignore time-sensitive framing and news-specific details. Generate a fully original article that contributes to long-term SEO authority, not short-term traffic.`,
       },
       {
         role: "assistant",
-        content: `Rule 1: Make sure to provide Headings for ALL relevant sections of the blog.
+        content: `CRITICAL REQUIREMENTS:
 
-Rule 2: The blog length MUST be between 3000 - 4000 words to exceed competitor depth and provide comprehensive value.
+1. **Word Count**: The article MUST be between 1,200-1,600 words. No more, no less.
 
-Rule 3: Structure must include these comprehensive sections to establish authority:
+2. **Originality**: This must be a fully original article. Do NOT rewrite or summarize the original RSS article. Extract the evergreen concept and create new, original content around it.
 
-**Introduction** (300-500 words)
-- Engaging hook that addresses search intent
-- Define key terms and concepts
-- Preview what the reader will learn
-- Set context for why this topic matters
+3. **Evergreen Focus**: Ignore time-sensitive news framing. Focus on the underlying concept, principles, strategies, and insights that remain relevant long-term.
 
-**What is [Topic]?** (400-600 words)
-- Comprehensive definition and explanation
-- Historical context and evolution
-- Current state of the industry/technology
-- Why it matters in today's landscape
+4. **Structure**: Use clear, logical headings (H2, H3). Structure should flow naturally based on the topic. Avoid generic filler sections like "What is X?" if it doesn't add value. Focus on:
+   - Strategic insights
+   - Practical applications
+   - Implementation guidance
+   - Industry implications
+   - Best practices (when relevant)
 
-**Why [Topic] Matters** (400-600 words)
-- Industry statistics and data
-- Real-world impact and implications
-- Business and economic implications
-- Future trends and predictions
+5. **Primary Keyword**: Identify and naturally integrate ONE clear primary keyword throughout:
+   - In the title (H1)
+   - Within first 100 words
+   - In 2-3 subheadings
+   - Throughout body paragraphs (natural density ~1-2%)
+   - In conclusion
 
-**How [Topic] Works** (500-800 words)
-- Step-by-step explanation or breakdown
-- Technical details (accessible to non-technical readers)
-- Examples and use cases
-- Common misconceptions clarified
+6. **Content Quality**:
+   - Avoid generic filler sections
+   - Avoid repeated phrasing or redundant statements
+   - Include practical insights and strategic depth
+   - Provide actionable value
+   - Use authoritative, professional tone
+   - NO emojis
+   - NO mention of the original RSS source or article
 
-**Best Practices and Implementation** (400-600 words)
-- Actionable advice and recommendations
-- Do's and don'ts
-- Expert recommendations
-- Practical implementation tips
+7. **Target Search Intent**: Focus on stable, long-term search intent (how-to, what-is, best-practices, strategic guidance) rather than news-based queries.
 
-**Case Studies and Real-World Examples** (400-600 words)
-- Real companies or projects using this
-- Success stories with quantifiable results
-- Lessons learned
-- Industry applications
+8. **Tone**: Authoritative, professional, expert-level. Write for founders, CTOs, and product managers seeking strategic insights.
 
-**Common Challenges and Solutions** (300-500 words)
-- Problems people commonly face
-- How to overcome these challenges
-- Tools and resources available
-- Expert insights
+9. **Core Topics Alignment**: Ensure content aligns with one or more of:
+   - AI software
+   - Digital transformation
+   - App development
+   - Workforce automation
+   - Emerging technology strategy
 
-**Future of [Topic]** (300-400 words)
-- Emerging trends and developments
-- Predictions for the next 2-5 years
-- How to stay ahead of the curve
-- Opportunities for businesses
-
-**Conclusion** (300-400 words)
-- Key takeaways and summary
-- Actionable next steps for readers
-- Call to action (natural, not salesy)
-- Internal links to related content
-
-Important: Focus on why this news matters, not just what happened. Avoid marketing speak or SEO padding - look like human written content. Keep it clear, insightful, authoritative, and relevant to people who care about Mobile apps, Technology, and innovative software. Provide depth that exceeds what competitors offer.`,
+Generate the article now.`,
       },
     ],
   });
