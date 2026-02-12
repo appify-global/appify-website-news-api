@@ -231,119 +231,137 @@ function integrateSemanticKeywords(content: string, primaryKeyword: string): str
 
 /**
  * Add strategic internal links to content (8-12 links for SEO)
+ * IMPORTANT: Never add links to headings - they get used as titles!
  */
 function addInternalLinks(content: string): string {
-  let optimized = content;
   let linkCount = 0;
   const maxLinks = 12; // Target 8-12 links
 
   // Track which links we've added to avoid duplicates
   const addedLinks = new Set<string>();
 
-  // Add internal links based on keywords found (strategic placement)
-  // Only add first occurrence of each link type to avoid over-optimization
+  // Split content into lines - process line by line to skip headings
+  const lines = content.split('\n');
+  const processedLines: string[] = [];
   
-  if (optimized.toLowerCase().includes("automation") && !addedLinks.has("automation") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\bautomation\b)/i,
-      '<a href="/automation">$1</a>'
-    );
-    addedLinks.add("automation");
-    linkCount++;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    
+    // Skip headings - don't add links to them (they become titles!)
+    if (trimmed.startsWith('## ') || trimmed.startsWith('### ') || trimmed.match(/^<h[23]/i)) {
+      processedLines.push(line);
+      continue;
+    }
+    
+    // Process non-heading lines only
+    let processedLine = line;
+    const lineLower = processedLine.toLowerCase();
+    
+    // Only add links to body paragraphs, not headings
+    if (lineLower.includes("automation") && !addedLinks.has("automation") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\bautomation\b)/i,
+        '<a href="/automation">$1</a>'
+      );
+      addedLinks.add("automation");
+      linkCount++;
+    }
+
+    if (lineLower.includes("software development") && !addedLinks.has("software") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\bsoftware development\b)/i,
+        '<a href="/projects">$1</a>'
+      );
+      addedLinks.add("software");
+      linkCount++;
+    }
+
+    if (lineLower.includes("app development") && !addedLinks.has("app-dev") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\bapp development\b)/i,
+        '<a href="/projects">$1</a>'
+      );
+      addedLinks.add("app-dev");
+      linkCount++;
+    }
+
+    if (lineLower.includes("seo") && !addedLinks.has("seo") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\bseo\b)/i,
+        '<a href="/automation/seo">$1</a>'
+      );
+      addedLinks.add("seo");
+      linkCount++;
+    }
+
+    if (lineLower.includes("phone automation") && !addedLinks.has("phone") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\bphone automation\b)/i,
+        '<a href="/automation/phone">$1</a>'
+      );
+      addedLinks.add("phone");
+      linkCount++;
+    }
+
+    if (lineLower.includes("mobile app") && !addedLinks.has("mobile") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\bmobile app\b)/i,
+        '<a href="/projects">$1</a>'
+      );
+      addedLinks.add("mobile");
+      linkCount++;
+    }
+
+    if (lineLower.includes("custom software") && !addedLinks.has("custom") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\bcustom software\b)/i,
+        '<a href="/projects">$1</a>'
+      );
+      addedLinks.add("custom");
+      linkCount++;
+    }
+
+    if (lineLower.includes("digital transformation") && !addedLinks.has("digital") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\bdigital transformation\b)/i,
+        '<a href="/automation">$1</a>'
+      );
+      addedLinks.add("digital");
+      linkCount++;
+    }
+
+    if (lineLower.includes("ai agent") && !addedLinks.has("ai-agent") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\bai agent\b)/i,
+        '<a href="/automation">$1</a>'
+      );
+      addedLinks.add("ai-agent");
+      linkCount++;
+    }
+
+    if (lineLower.includes("ai software") && !addedLinks.has("ai-software") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\bai software\b)/i,
+        '<a href="/projects">$1</a>'
+      );
+      addedLinks.add("ai-software");
+      linkCount++;
+    }
+
+    // Add studio link if relevant
+    if ((lineLower.includes("design") || lineLower.includes("ui") || lineLower.includes("ux")) && !addedLinks.has("studio") && linkCount < maxLinks && !processedLine.includes('<a href')) {
+      processedLine = processedLine.replace(
+        /(\b(design|ui|ux)\b)/i,
+        '<a href="/studio">$1</a>'
+      );
+      addedLinks.add("studio");
+      linkCount++;
+    }
+
+    processedLines.push(processedLine);
   }
 
-  if (optimized.toLowerCase().includes("software development") && !addedLinks.has("software") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\bsoftware development\b)/i,
-      '<a href="/projects">$1</a>'
-    );
-    addedLinks.add("software");
-    linkCount++;
-  }
-
-  if (optimized.toLowerCase().includes("app development") && !addedLinks.has("app-dev") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\bapp development\b)/i,
-      '<a href="/projects">$1</a>'
-    );
-    addedLinks.add("app-dev");
-    linkCount++;
-  }
-
-  if (optimized.toLowerCase().includes("seo") && !addedLinks.has("seo") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\bseo\b)/i,
-      '<a href="/automation/seo">$1</a>'
-    );
-    addedLinks.add("seo");
-    linkCount++;
-  }
-
-  if (optimized.toLowerCase().includes("phone automation") && !addedLinks.has("phone") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\bphone automation\b)/i,
-      '<a href="/automation/phone">$1</a>'
-    );
-    addedLinks.add("phone");
-    linkCount++;
-  }
-
-  if (optimized.toLowerCase().includes("mobile app") && !addedLinks.has("mobile") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\bmobile app\b)/i,
-      '<a href="/projects">$1</a>'
-    );
-    addedLinks.add("mobile");
-    linkCount++;
-  }
-
-  if (optimized.toLowerCase().includes("custom software") && !addedLinks.has("custom") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\bcustom software\b)/i,
-      '<a href="/projects">$1</a>'
-    );
-    addedLinks.add("custom");
-    linkCount++;
-  }
-
-  if (optimized.toLowerCase().includes("digital transformation") && !addedLinks.has("digital") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\bdigital transformation\b)/i,
-      '<a href="/automation">$1</a>'
-    );
-    addedLinks.add("digital");
-    linkCount++;
-  }
-
-  if (optimized.toLowerCase().includes("ai agent") && !addedLinks.has("ai-agent") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\bai agent\b)/i,
-      '<a href="/automation">$1</a>'
-    );
-    addedLinks.add("ai-agent");
-    linkCount++;
-  }
-
-  if (optimized.toLowerCase().includes("ai software") && !addedLinks.has("ai-software") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\bai software\b)/i,
-      '<a href="/projects">$1</a>'
-    );
-    addedLinks.add("ai-software");
-    linkCount++;
-  }
-
-  // Add studio link if relevant
-  if ((optimized.toLowerCase().includes("design") || optimized.toLowerCase().includes("ui") || optimized.toLowerCase().includes("ux")) && !addedLinks.has("studio") && linkCount < maxLinks) {
-    optimized = optimized.replace(
-      /(\b(design|ui|ux)\b)/i,
-      '<a href="/studio">$1</a>'
-    );
-    addedLinks.add("studio");
-    linkCount++;
-  }
-
-  return optimized;
+  return processedLines.join('\n');
 }
 
 /**
