@@ -69,9 +69,11 @@ Topic Description: ${blueprint.description}`,
    - Start with the first section heading: ## ${blueprint.sections[0]}
    - Follow with the remaining sections in order: ${blueprint.sections.slice(1).map(s => `## ${s}`).join(', ')}
    - Each section must have 2-3 substantial paragraphs (minimum 150 words per section)
-   - Each paragraph must be 3-5 sentences with depth and analysis - NO bullet points or checklists
+   - Each paragraph must be 2-4 sentences (2-4 lines) with depth and analysis - NO bullet points or checklists
    - Write in full narrative paragraphs that explain concepts, provide context, and offer insights
    - DO NOT use generic headings like "Why It Matters", "Industry Response", "Future Outlook"
+   - DO NOT repeat section headings - each heading should appear only once
+   - DO NOT include a "Conclusion" section - end with the last content section
 
 4. **Content Requirements - CRITICAL FOR AUTHORITY**:
    - **Definition Section**: Start with ${blueprint.sections[0]} - identify a real business pain or strategic challenge, hook enterprise readers, set authoritative tone (3-4 paragraphs)
@@ -107,7 +109,7 @@ Topic Description: ${blueprint.description}`,
 
 7. **Content Quality - AUTHORITY LEVEL**:
    - Write in full paragraphs with depth - NO bullet points, NO checklists, NO numbered lists
-   - Each paragraph should be 4-6 sentences that develop an idea with technical context, specific examples, and deep analysis
+   - Each paragraph should be 2-4 sentences (2-4 lines) that develop an idea with technical context, specific examples, and deep analysis
    - Avoid generic filler phrases like "industry landscape continues to evolve" or "maintain competitive advantage"
    - Avoid generic praise language ("revolutionary", "game-changing", etc.)
    - Avoid promotional tone - NO service pitches, NO "contact us", NO "learn more about our services"
@@ -166,6 +168,29 @@ Generate the article now using the blueprint structure. Output ONLY the article 
   
   // Remove any trailing explanations
   content = content.replace(/\n\n*(In conclusion|To summarize|In summary|Overall|Finally).*$/gim, "");
+  
+  // Remove duplicate section headings (keep only first occurrence)
+  const seenHeadings = new Set<string>();
+  const lines = content.split('\n');
+  const cleanedLines: string[] = [];
+  
+  for (const line of lines) {
+    const headingMatch = line.match(/^##\s+(.+)$/);
+    if (headingMatch) {
+      const headingText = headingMatch[1].trim().toLowerCase();
+      if (seenHeadings.has(headingText)) {
+        // Skip duplicate heading and its content until next heading
+        continue;
+      }
+      seenHeadings.add(headingText);
+    }
+    cleanedLines.push(line);
+  }
+  
+  content = cleanedLines.join('\n');
+  
+  // Remove any "Conclusion" sections (we don't want conclusion sections)
+  content = content.replace(/\n##\s+Conclusion\s*\n[\s\S]*$/gim, "");
   
   // Clean up extra whitespace
   content = content.trim();
