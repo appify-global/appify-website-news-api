@@ -15,6 +15,7 @@ import { uploadImageToRailbucket } from "../services/railbucket";
 import { parseContentBlocks, generateSlug, generateExcerpt } from "../services/contentParser";
 import { prisma } from "../lib/prisma";
 import slugify from "slugify";
+import OpenAI from "openai";
 
 /**
  * Generation Mode Selection:
@@ -34,6 +35,66 @@ const optimizeForSEO = USE_CODE_GENERATION ? optimizeForSEOCode : optimizeForSEO
 const convertToHTML = USE_CODE_GENERATION ? convertToHTMLCode : convertToHTMLOpenAI;
 const generateBlogTitle = USE_CODE_GENERATION ? generateBlogTitleCode : generateBlogTitleOpenAI;
 const generateMetaDescription = USE_CODE_GENERATION ? generateMetaDescriptionCode : generateMetaDescriptionOpenAI;
+
+// Helper functions for duplicate detection
+function normalizeTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '') // Remove special chars
+    .replace(/\s+/g, ' ')     // Normalize whitespace
+    .trim();
+}
+
+function calculateTitleSimilarity(title1: string, title2: string): number {
+  const normalized1 = normalizeTitle(title1);
+  const normalized2 = normalizeTitle(title2);
+  
+  if (normalized1 === normalized2) return 1.0;
+  
+  // Extract meaningful words (length > 3)
+  const words1 = normalized1.split(' ').filter(w => w.length > 3);
+  const words2 = normalized2.split(' ').filter(w => w.length > 3);
+  
+  if (words1.length === 0 || words2.length === 0) return 0;
+  
+  // Count common words
+  const commonWords = words1.filter(w => words2.includes(w));
+  const similarity = commonWords.length / Math.max(words1.length, words2.length);
+  
+  return similarity;
+}
+
+async function checkSemanticSimilarity(title1: string, title2: string): Promise<boolean> {
+  // Only use OpenAI if API key is available
+  if (!process.env.OPENAI_API_KEY) {
+    return false;
+  }
+  
+  try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      max_tokens: 10,
+      messages: [
+        {
+          role: "system",
+          content: "You are a duplicate article detector. Determine if two article titles refer to the same news story. Respond with only 'YES' or 'NO'.",
+        },
+        {
+          role: "user",
+          content: `Title 1: "${title1}"\nTitle 2: "${title2}"\n\nDo these titles refer to the same news story?`,
+        },
+      ],
+    });
+    
+    const answer = response.choices[0]?.message?.content?.trim().toUpperCase();
+    return answer === "YES";
+  } catch (error) {
+    console.error(`[Duplicate Check] OpenAI semantic check failed:`, error);
+    return false; // Fail open - don't block if check fails
+  }
+}
 
 /**
  * Full pipeline: RSS → Code-based generation → SEO optimization → HTML conversion → Title/Description → Image → Parse → Save
@@ -165,6 +226,53 @@ export async function generateArticles(): Promise<void> {
       // Step 7: Parse HTML into content blocks
       const contentBlocks = parseContentBlocks(htmlContent);
       const slug = generateSlug(blogTitle); // Use generated title for slug
+      
+      // Duplicate Detection: Step 1 - Check if slug already exists
+      const existingBySlug = await prisma.article.findUnique({
+        where: { slug },
+        select: { id: true, title: true, sourceUrl: true },
+      });
+      
+      if (existingBySlug) {
+        console.log(`[Pipeline] ⚠️  Duplicate detected: Article with same slug already exists: "${existingBySlug.title}" (from ${existingBySlug.sourceUrl}). Skipping: "${blogTitle}"`);
+        continue;
+      }
+      
+      // Duplicate Detection: Step 2 - Check normalized title similarity for recent articles (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      const recentArticles = await prisma.article.findMany({
+        where: {
+          createdAt: { gte: sevenDaysAgo },
+          status: 'published',
+        },
+        select: { id: true, title: true, slug: true, sourceUrl: true },
+      });
+      
+      // Check for high title similarity (80%+)
+      let potentialDuplicate: { title: string; sourceUrl: string | null } | null = null;
+      for (const article of recentArticles) {
+        const similarity = calculateTitleSimilarity(blogTitle, article.title);
+        if (similarity >= 0.8) {
+          potentialDuplicate = { title: article.title, sourceUrl: article.sourceUrl };
+          break;
+        }
+      }
+      
+      // Duplicate Detection: Step 3 - If ambiguous, use OpenAI for semantic check
+      if (potentialDuplicate) {
+        console.log(`[Pipeline] 🔍 Potential duplicate detected (${Math.round(calculateTitleSimilarity(blogTitle, potentialDuplicate.title) * 100)}% title similarity). Checking with AI...`);
+        
+        const isSemanticDuplicate = await checkSemanticSimilarity(blogTitle, potentialDuplicate.title);
+        
+        if (isSemanticDuplicate) {
+          console.log(`[Pipeline] ⚠️  Duplicate confirmed by AI: Similar article exists "${potentialDuplicate.title}" (from ${potentialDuplicate.sourceUrl}). Skipping: "${blogTitle}"`);
+          continue;
+        } else {
+          console.log(`[Pipeline] ✅ AI confirmed: Different stories. Proceeding with article.`);
+        }
+      }
       
       // Generate excerpt (limit to reasonable length for database)
       let excerpt = generateExcerpt(contentBlocks, metaDescription) || metaDescription.slice(0, 250);
