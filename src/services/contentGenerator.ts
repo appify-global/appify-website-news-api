@@ -19,7 +19,7 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
   console.log(`[OpenAI] Generating blog for: ${item.title}`);
 
   // Detect topic and get blueprint
-  const topic = detectTopic(item);
+  const topic = await detectTopic(item);
   const blueprint = getTopicBlueprint(topic);
   
   console.log(`[OpenAI] Detected topic: ${topic}`);
