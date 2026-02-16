@@ -22,15 +22,35 @@ adminRouter.use((req, res, next) => {
 
 // POST /api/admin/generate - Trigger article generation
 // Query params: ?fetchAll=true to fetch all RSS items (including older ones)
+// Query params: ?count=N to generate N articles (overrides MAX_ARTICLES_PER_RUN)
 adminRouter.post("/generate", async (req, res) => {
   try {
     const fetchAll = req.query.fetchAll === "true" || req.body?.fetchAll === true;
-    console.log(`[ADMIN] Manual article generation triggered${fetchAll ? " (fetching all RSS items)" : ""}`);
-    await generateArticles(fetchAll);
-    res.json({ 
-      success: true, 
-      message: `Article generation started${fetchAll ? " (fetching all RSS items)" : ""}. Check logs for progress.` 
-    });
+    const count = req.query.count ? parseInt(req.query.count as string) : req.body?.count ? parseInt(req.body.count) : undefined;
+    console.log(`[ADMIN] Manual article generation triggered${fetchAll ? " (fetching all RSS items)" : ""}${count ? ` (generating ${count} article(s))` : ""}`);
+    
+    // Temporarily override MAX_ARTICLES_PER_RUN if count is specified
+    const originalMax = process.env.MAX_ARTICLES_PER_RUN;
+    if (count !== undefined) {
+      process.env.MAX_ARTICLES_PER_RUN = count.toString();
+    }
+    
+    try {
+      await generateArticles(fetchAll);
+      res.json({ 
+        success: true, 
+        message: `Article generation started${fetchAll ? " (fetching all RSS items)" : ""}${count ? ` (generating ${count} article(s))` : ""}. Check logs for progress.` 
+      });
+    } finally {
+      // Restore original value
+      if (count !== undefined) {
+        if (originalMax) {
+          process.env.MAX_ARTICLES_PER_RUN = originalMax;
+        } else {
+          delete process.env.MAX_ARTICLES_PER_RUN;
+        }
+      }
+    }
   } catch (error: any) {
     console.error("[ADMIN] Generation error:", error);
     res.status(500).json({ 
