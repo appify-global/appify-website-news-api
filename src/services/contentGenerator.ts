@@ -188,7 +188,7 @@ CRITICAL REQUIREMENTS:
    - Extract the broader lesson, strategy, or principle
    - Position as "one example" or "as demonstrated by" rather than centering the narrative
 
-Generate the article now using the blueprint structure. Output ONLY the article content in markdown format - start with the first section heading, use the exact headings provided, no explanations, no introductions, no conclusions.`,
+Generate an ORIGINAL article about "${item.title}". Use the blueprint structure for SEO (use the exact headings provided), but write completely original content about the RSS topic. Do NOT copy the RSS article - write your own unique analysis, examples, and insights. Output ONLY the article content in markdown format - start with the first section heading, use the exact blueprint headings, no explanations, no introductions, no conclusions.`,
       },
     ],
   });
