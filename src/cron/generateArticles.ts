@@ -87,7 +87,7 @@ async function checkArticleRelevanceWithAI(item: RSSItem): Promise<boolean> {
 - Web3 (blockchain, cryptocurrency, DeFi, NFTs)
 - Work (workforce, workplace, productivity, remote work)
 - Design (UX, UI, user experience, user interface design)
-- Culture (workplace culture, company culture)
+- Culture (workplace culture, company culture, organizational culture - NOT general culture/entertainment/films)
 - Automation (workflow automation, business automation, process automation)
 - Digital transformation
 - App development (mobile apps, software development)
@@ -349,7 +349,10 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
       const hasWeb3Topic = titleLower.includes("web3") || titleLower.includes("blockchain") || titleLower.includes("crypto") || itemContent.includes("web3") || itemContent.includes("blockchain") || itemContent.includes("defi");
       const hasWorkTopic = titleLower.includes("work") || itemContent.includes("workforce") || itemContent.includes("workplace") || itemContent.includes("automation");
       const hasDesignTopic = titleLower.includes("design") || titleLower.includes("ux") || titleLower.includes("ui") || itemContent.includes("design") || itemContent.includes("user experience");
-      const hasCultureTopic = titleLower.includes("culture") || itemContent.includes("culture") || itemContent.includes("workplace culture");
+      // Culture topic should be specific to workplace/company culture, not general culture
+      const hasCultureTopic = titleLower.includes("workplace culture") || titleLower.includes("company culture") || 
+                              itemContent.includes("workplace culture") || itemContent.includes("company culture") ||
+                              itemContent.includes("organizational culture") || itemContent.includes("corporate culture");
       const hasAutomationTopic = titleLower.includes("automation") || itemContent.includes("automation") || itemContent.includes("automate");
       
       // Accept if article aligns with ANY of our topics (in title or content)
