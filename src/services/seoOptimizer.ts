@@ -142,7 +142,7 @@ If no relevant internal link fits the context, do not force it. Quality over qua
 Instruction 9: At the very end, output the following on separate lines:
 META_TITLE: [your meta title here]
 META_DESCRIPTION: [your meta description here]
-TOPICS: [one of: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Culture]`,
+TOPICS: [one or more topics from: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Culture - separate multiple topics with commas, e.g. "AI, Startups" if the article covers both]`,
       },
       {
         role: "user",

@@ -364,55 +364,66 @@ function addInternalLinks(content: string): string {
  * Determine topic from content and categories
  * Only returns topics from our allowed list: AI, Automation, Web, Startups, Defi, Web3, Work, Design, Culture
  */
-function determineTopic(content: string, categories?: string[]): string {
+function determineTopic(content: string, categories?: string[], rssTitle?: string): string {
   const lowerContent = content.toLowerCase();
+  const lowerTitle = (rssTitle || "").toLowerCase();
+  const combinedText = (lowerTitle + " " + lowerContent).toLowerCase();
   const categoryStr = categories?.join(" ").toLowerCase() || "";
   
   // Allowed topics (must match exactly)
   const allowedTopics = ["AI", "Automation", "Web", "Startups", "Defi", "Web3", "Work", "Design", "Culture"];
+  
+  const detectedTopics: string[] = [];
   
   // Check if RSS categories match any allowed topic
   if (categories && categories.length > 0) {
     for (const cat of categories) {
       const normalizedCat = cat.trim();
       if (allowedTopics.includes(normalizedCat)) {
-        return normalizedCat;
-      }
-      // Check case-insensitive match
-      const matched = allowedTopics.find(t => t.toLowerCase() === normalizedCat.toLowerCase());
-      if (matched) {
-        return matched;
+        detectedTopics.push(normalizedCat);
+      } else {
+        // Check case-insensitive match
+        const matched = allowedTopics.find(t => t.toLowerCase() === normalizedCat.toLowerCase());
+        if (matched && !detectedTopics.includes(matched)) {
+          detectedTopics.push(matched);
+        }
       }
     }
   }
 
-  // Check content for topic keywords (only for our allowed topics)
-  if (lowerContent.includes("ai") || lowerContent.includes("artificial intelligence") || lowerContent.includes("machine learning") || lowerContent.includes("neural network")) {
-    return "AI";
+  // Check title AND content for topic keywords (detect MULTIPLE topics)
+  // Use combinedText to check both title and content
+  if ((combinedText.includes("ai") || combinedText.includes("artificial intelligence") || combinedText.includes("machine learning") || combinedText.includes("neural network")) && !detectedTopics.includes("AI")) {
+    detectedTopics.push("AI");
   }
-  if (lowerContent.includes("automation") || lowerContent.includes("automate") || lowerContent.includes("workflow")) {
-    return "Automation";
+  if ((combinedText.includes("automation") || combinedText.includes("automate") || combinedText.includes("workflow")) && !detectedTopics.includes("Automation")) {
+    detectedTopics.push("Automation");
   }
-  if (lowerContent.includes("web") || lowerContent.includes("website") || lowerContent.includes("web development") || lowerContent.includes("frontend") || lowerContent.includes("backend")) {
-    return "Web";
+  if ((combinedText.includes("web") || combinedText.includes("website") || combinedText.includes("web development") || combinedText.includes("frontend") || combinedText.includes("backend")) && !detectedTopics.includes("Web")) {
+    detectedTopics.push("Web");
   }
-  if (lowerContent.includes("startup") || lowerContent.includes("entrepreneur") || lowerContent.includes("venture capital")) {
-    return "Startups";
+  if ((combinedText.includes("startup") || combinedText.includes("entrepreneur") || combinedText.includes("venture capital") || combinedText.includes("accelerator") || combinedText.includes("funding") || combinedText.includes("fund for")) && !detectedTopics.includes("Startups")) {
+    detectedTopics.push("Startups");
   }
-  if (lowerContent.includes("defi") || lowerContent.includes("decentralized finance") || lowerContent.includes("blockchain finance")) {
-    return "Defi";
+  if ((combinedText.includes("defi") || combinedText.includes("decentralized finance") || combinedText.includes("blockchain finance")) && !detectedTopics.includes("Defi")) {
+    detectedTopics.push("Defi");
   }
-  if (lowerContent.includes("web3") || lowerContent.includes("blockchain") || lowerContent.includes("cryptocurrency") || lowerContent.includes("nft")) {
-    return "Web3";
+  if ((combinedText.includes("web3") || combinedText.includes("blockchain") || combinedText.includes("cryptocurrency") || combinedText.includes("nft")) && !detectedTopics.includes("Web3")) {
+    detectedTopics.push("Web3");
   }
-  if (lowerContent.includes("work") || lowerContent.includes("workplace") || lowerContent.includes("remote work") || lowerContent.includes("productivity")) {
-    return "Work";
+  if ((combinedText.includes("work") || combinedText.includes("workplace") || combinedText.includes("remote work") || combinedText.includes("productivity")) && !detectedTopics.includes("Work")) {
+    detectedTopics.push("Work");
   }
-  if (lowerContent.includes("design") || lowerContent.includes("ui") || lowerContent.includes("ux") || lowerContent.includes("user interface")) {
-    return "Design";
+  if ((combinedText.includes("design") || combinedText.includes("ui") || combinedText.includes("ux") || combinedText.includes("user interface")) && !detectedTopics.includes("Design")) {
+    detectedTopics.push("Design");
   }
-  if (lowerContent.includes("culture") || lowerContent.includes("company culture") || lowerContent.includes("workplace culture")) {
-    return "Culture";
+  if ((combinedText.includes("workplace culture") || combinedText.includes("company culture") || combinedText.includes("organizational culture") || combinedText.includes("corporate culture")) && !detectedTopics.includes("Culture")) {
+    detectedTopics.push("Culture");
+  }
+
+  // Return comma-separated topics, or default to AI if none found
+  if (detectedTopics.length > 0) {
+    return detectedTopics.join(", ");
   }
 
   // If no match found, this should not have passed filtering - return a safe default but log error
@@ -577,7 +588,7 @@ export async function optimizeForSEO(
   }
 
   // Determine topic
-  const topics = determineTopic(blogContent, categories);
+  const topics = determineTopic(blogContent, categories, rssTitle);
 
   // Generate meta title and description
   // For meta title, prioritize RSS title - it's the most accurate
