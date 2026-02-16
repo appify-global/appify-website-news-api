@@ -28,13 +28,14 @@ export async function generateBlogTitle(blogContent: string, originalTitle?: str
         role: "system",
         content: `You are a title optimizer. Your job is to make MINIMAL changes to the original title for SEO purposes.
 
-CRITICAL RULES:
+CRITICAL RULES - FOLLOW THESE EXACTLY:
 1. **Keep the original title's meaning and structure** - only make slight adjustments
-2. If the original title is already good (under 60 chars, clear, has relevant keywords), keep it as-is or make only tiny tweaks
-3. If the original title is too long (>60 chars), shorten it slightly while keeping the core meaning
+2. **ABSOLUTELY NEVER truncate, shorten, or cut off the title** - keep the COMPLETE FULL original title
+3. **If the original title is long, KEEP IT LONG** - do NOT shorten it under any circumstances
 4. If the original title lacks SEO keywords, add ONE keyword naturally (e.g., "AI app development", "app development") ONLY if it fits naturally
 5. Do NOT rewrite the title completely - preserve the original essence
-6. Return ONLY the optimized title, no explanations
+6. **The title must be the FULL LENGTH of the original** - never add "..." or truncate
+7. Return ONLY the optimized title, no explanations, NO TRUNCATION WHATSOEVER
 
 Return the title as plain text (no markdown, no quotes, no formatting).`,
       },
@@ -52,7 +53,7 @@ Return the title as plain text (no markdown, no quotes, no formatting).`,
     // Fallback to original title if generation fails
     if (baseTitle) {
       console.log(`[OpenAI] Title generation failed, using original: ${baseTitle}`);
-      return baseTitle.length > 60 ? baseTitle.slice(0, 57) + "..." : baseTitle;
+      return baseTitle; // Don't truncate - use full title
     }
     throw new Error("OpenAI returned empty title");
   }
@@ -68,16 +69,14 @@ Return the title as plain text (no markdown, no quotes, no formatting).`,
     // If similarity is too low (<70%), the AI changed it too much - use original with minimal tweaks
     if (similarity < 0.7) {
       console.log(`[OpenAI] Generated title too different from original (${Math.round(similarity * 100)}% similarity), using original with minimal tweaks`);
-      // Just ensure length is OK
-      return baseTitle.length > 60 ? baseTitle.slice(0, 57) + "..." : baseTitle;
+      return baseTitle; // Don't truncate - use full original title
     }
   }
   
-  // Ensure it's under 60 characters
-  const finalTitle = cleanTitle.length > 60 ? cleanTitle.slice(0, 57) + "..." : cleanTitle;
-
-  console.log(`[OpenAI] Generated title: ${finalTitle}${baseTitle ? ` (from original: ${baseTitle})` : ""}`);
-  return finalTitle;
+  // Don't truncate titles - let them be full length for better SEO and readability
+  // The database schema allows full-length titles (only metaTitle is limited to 60 chars)
+  console.log(`[OpenAI] Generated title: ${cleanTitle}${baseTitle ? ` (from original: ${baseTitle})` : ""}`);
+  return cleanTitle;
 }
 
 // Helper function to calculate title similarity

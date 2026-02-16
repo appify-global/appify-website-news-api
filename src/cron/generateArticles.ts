@@ -198,6 +198,14 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
   // This ensures we don't stop early if articles are rejected by the filter
   const generationType = USE_CODE_GENERATION ? "CODE-BASED" : "OpenAI";
   const minArticlesToGenerate = 1; // Always try to generate at least 1 article
+  
+  // Log the generation mode and environment variable for debugging
+  console.log(`[Pipeline] ==========================================`);
+  console.log(`[Pipeline] Generation Mode: ${generationType}`);
+  console.log(`[Pipeline] USE_CODE_GENERATION env var: ${process.env.USE_CODE_GENERATION}`);
+  console.log(`[Pipeline] USE_CODE_GENERATION === "true": ${USE_CODE_GENERATION}`);
+  console.log(`[Pipeline] OPENAI_API_KEY set: ${!!process.env.OPENAI_API_KEY}`);
+  console.log(`[Pipeline] ==========================================`);
   console.log(`[Pipeline] Processing articles using ${generationType}... (will generate at least ${minArticlesToGenerate} article, up to ${maxArticles} articles)`);
   
   let articlesGenerated = 0;
@@ -378,8 +386,41 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
         continue; // Skip this article
       }
 
-      // Step 2: Generate blog content (OpenAI or Code)
+      // Step 2: Extract image from source URL FIRST (before content generation)
+      // ALWAYS try to extract from source article page first - it's usually better quality
+      // Priority: Source article page > RSS feed > Grok (last resort)
+      let articlePageImageUrl: string | undefined;
+      if (item.link) {
+        console.log(`[Pipeline] 🔍 Extracting image from source article page: ${item.link}`);
+        try {
+          // Import the fetchArticleContent function to extract image from source
+          const { fetchArticleContent } = await import("../services/contentGeneratorCode");
+          const articleData = await fetchArticleContent(item.link);
+          
+          if (articleData.imageUrl) {
+            articlePageImageUrl = articleData.imageUrl;
+            console.log(`[Pipeline] ✅ Successfully extracted image from source article page`);
+            console.log(`[Pipeline]    Image URL: ${articleData.imageUrl.substring(0, 100)}...`);
+          } else {
+            console.log(`[Pipeline] ⚠️  No image found in source article page (checked og:image, twitter:image, and first img tag)`);
+          }
+        } catch (error: any) {
+          console.warn(`[Pipeline] ⚠️  Could not extract image from source URL: ${error.message}`);
+          console.warn(`[Pipeline]    Will try RSS feed image or Grok as fallback`);
+        }
+      }
+      
+      // Use source article page image if found, otherwise keep RSS image
+      if (articlePageImageUrl) {
+        item.imageUrl = articlePageImageUrl;
+      } else if (item.imageUrl) {
+        console.log(`[Pipeline] ✅ Using image from RSS feed: ${item.imageUrl.substring(0, 80)}...`);
+      }
+
+      // Step 3: Generate blog content (OpenAI or Code)
+      console.log(`[Pipeline] Generating content using: ${USE_CODE_GENERATION ? 'CODE-BASED' : 'OpenAI'} mode`);
       const rawBlog = await generateBlogContent(item);
+      console.log(`[Pipeline] Content generated, length: ${rawBlog.length} characters`);
 
       // Step 3: SEO optimize (OpenAI or Code)
       const seoResult = USE_CODE_GENERATION 
@@ -455,44 +496,56 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
         excerpt = excerpt.slice(0, 497) + "...";
       }
 
-      // Step 8: Get image - use RSS image first, try to upload it, only use Grok if RSS image fails
+      // Step 8: Get image - ALWAYS prioritize source URL image, only use Grok as absolute last resort
+      // Priority order: 1) Source article page image (extracted in Step 2), 2) RSS feed image, 3) Grok generation, 4) Placeholder
       // All images are uploaded to Railbucket for consistent storage
-      // Note: For code-based generation, generateBlogContent may have already extracted imageUrl from article page
-      // Check imageUrl again after content generation (it may have been set during generateBlogContent)
       let imageUrl = item.imageUrl || item.enclosure?.url || "";
       
-      if (imageUrl) {
-        console.log(`[Pipeline] Image found: ${imageUrl.substring(0, 80)}... (from ${item.imageUrl ? 'article page/RSS' : 'RSS enclosure'})`);
-      } else {
-        console.log("[Pipeline] No RSS image found in feed or article page - will use Grok or placeholder");
-      }
+      console.log(`[Pipeline] Image selection check:`);
+      console.log(`[Pipeline]   - item.imageUrl: ${item.imageUrl ? `SET (${item.imageUrl.substring(0, 60)}...)` : 'NOT SET'}`);
+      console.log(`[Pipeline]   - item.enclosure?.url: ${item.enclosure?.url ? `SET (${item.enclosure.url.substring(0, 60)}...)` : 'NOT SET'}`);
       
       if (imageUrl) {
-        // Try to use RSS image - upload to Railbucket
-        console.log("[Pipeline] RSS image found, attempting to upload to Railbucket...");
+        const imageSource = item.imageUrl ? 'source article page' : 'RSS feed';
+        console.log(`[Pipeline] ✅ Image found from ${imageSource}: ${imageUrl.substring(0, 80)}...`);
+        
+        // Try to upload source image to Railbucket
+        console.log(`[Pipeline] Uploading ${imageSource} image to Railbucket...`);
         try {
           const filename = `${slugify(blogTitle, { lower: true, strict: true })}-${Date.now()}.png`;
           imageUrl = await uploadImageToRailbucket(imageUrl, filename);
-          console.log("[Pipeline] RSS image uploaded to Railbucket successfully");
-        } catch (uploadError) {
-          // RSS image URL failed (can't download/access) - fall back to Grok generation
-          console.error("[Pipeline] RSS image URL failed or couldn't be accessed, generating with Grok-2-Image instead:", uploadError);
-          try {
-            imageUrl = await generateImage(blogTitle, seoResult.topics);
-            console.log("[Pipeline] Image generated successfully with Grok-2-Image");
-          } catch (imgError) {
-            console.error("[Pipeline] Grok image generation also failed, using placeholder:", imgError);
-            imageUrl = "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80";
+          console.log(`[Pipeline] ✅ Source image uploaded to Railbucket successfully`);
+        } catch (uploadError: any) {
+          // Source image URL failed (can't download/access) - try one more time with different approach
+          console.error(`[Pipeline] ⚠️  Source image upload failed: ${uploadError.message}`);
+          console.log(`[Pipeline] Attempting to use image URL directly (may be a signed URL or CDN)...`);
+          
+          // If it's already a valid URL (CDN, signed URL, etc.), use it directly
+          if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+            console.log(`[Pipeline] Using source image URL directly (not uploading to Railbucket)`);
+            // Keep the original URL - it might be a CDN or signed URL that works directly
+          } else {
+            // Only fall back to Grok if we absolutely can't use the source image
+            console.error(`[Pipeline] Source image URL is invalid, falling back to Grok generation as last resort`);
+            try {
+              imageUrl = await generateImage(blogTitle, seoResult.topics);
+              console.log(`[Pipeline] Image generated with Grok-2-Image (source image unavailable)`);
+            } catch (imgError) {
+              console.error(`[Pipeline] Grok image generation also failed, using placeholder:`, imgError);
+              imageUrl = "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80";
+            }
           }
         }
       } else {
-        // No RSS image found - generate with Grok (both modes) or use placeholder
-        console.log("[Pipeline] No RSS image found, generating with Grok-2-Image...");
+        // No source image found at all - only use Grok as absolute last resort
+        console.log(`[Pipeline] ⚠️  No image found in source article page or RSS feed`);
+        console.log(`[Pipeline] Generating with Grok-2-Image as last resort...`);
         try {
+          // generateImage already uploads to Railbucket and returns Railbucket URL
           imageUrl = await generateImage(blogTitle, seoResult.topics);
-          console.log("[Pipeline] Image generated successfully with Grok-2-Image");
+          console.log(`[Pipeline] ✅ Image generated with Grok-2-Image and uploaded to Railbucket`);
         } catch (imgError) {
-          console.error("[Pipeline] Image generation failed, using placeholder:", imgError);
+          console.error(`[Pipeline] Grok image generation failed, using placeholder:`, imgError);
           imageUrl = "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80";
         }
       }
@@ -506,17 +559,21 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
         alt: block.alt || null,
       }));
 
+      // Log title length to verify it's not truncated
+      console.log(`[Pipeline] Title to save: "${blogTitle}" (${blogTitle.length} characters)`);
+      console.log(`[Pipeline] Image URL to save: ${imageUrl ? imageUrl.substring(0, 100) + '...' : 'NONE'}`);
+      
       const article = await prisma.article.create({
         data: {
           slug,
-          title: blogTitle, // Use generated title instead of RSS title
+          title: blogTitle, // Full title - no truncation (only metaTitle is limited to 60 chars)
           excerpt,
           topics: seoResult.topics,
           author: "Appify",
           imageUrl,
           date: item.pubDate ? new Date(item.pubDate) : new Date(),
           isFeatured: false,
-          metaTitle: (seoResult.metaTitle || blogTitle.slice(0, 60)).slice(0, 60), // Max 60 chars
+          metaTitle: (seoResult.metaTitle || blogTitle).slice(0, 60), // Meta title max 60 chars (for SEO), but main title is full length
           metaDescription: metaDescription.slice(0, 160), // Max 160 chars
           sourceUrl: item.link,
           status: "published", // Auto-publish articles

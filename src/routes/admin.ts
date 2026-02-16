@@ -6,7 +6,7 @@ import { optimizeForSEO } from "../services/seoOptimizer";
 import { convertToHTML } from "../services/htmlConverter";
 import { parseContentBlocks } from "../services/contentParser";
 import { migrateImagesToRailbucket } from "../scripts/migrateImagesToRailbucket";
-import { getSignedImageUrl, extractFilenameFromUrl } from "../services/railbucket";
+import { getSignedImageUrl, extractFilenameFromUrl, deleteImageFromRailbucket } from "../services/railbucket";
 import { prisma } from "../lib/prisma";
 
 export const adminRouter = Router();
@@ -351,6 +351,87 @@ adminRouter.get("/stats", async (_req, res) => {
       pending,
     });
   } catch (error: any) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// DELETE /api/admin/article/:slug - Delete article and its Railbucket image
+adminRouter.delete("/article/:slug", async (req, res) => {
+  try {
+    const slug = req.params.slug as string;
+    
+    // Get article to find image URL
+    const article = await prisma.article.findUnique({
+      where: { slug },
+      select: { id: true, title: true, imageUrl: true },
+    });
+
+    if (!article) {
+      return res.status(404).json({ 
+        success: false, 
+        error: "Article not found" 
+      });
+    }
+
+    // Extract filename from image URL if it's a Railbucket image
+    let imageFilename: string | null = null;
+    if (article.imageUrl && (article.imageUrl.includes('railbucket') || article.imageUrl.includes('t3.storageapi.dev'))) {
+      imageFilename = extractFilenameFromUrl(article.imageUrl);
+    }
+
+    // Delete the article
+    await prisma.article.delete({
+      where: { id: article.id },
+    });
+
+    // Delete image from Railbucket if it exists there
+    let imageDeleted = false;
+    if (imageFilename) {
+      try {
+        await deleteImageFromRailbucket(imageFilename);
+        imageDeleted = true;
+        console.log(`[ADMIN] Deleted image from Railbucket: ${imageFilename}`);
+      } catch (error: any) {
+        console.error(`[ADMIN] Failed to delete image from Railbucket: ${error.message}`);
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Article deleted${imageDeleted ? ' and image removed from Railbucket' : ''}`,
+      deleted: {
+        title: article.title,
+        slug: article.slug,
+        imageDeleted: imageDeleted,
+        imageFilename: imageFilename,
+      }
+    });
+  } catch (error: any) {
+    console.error("[ADMIN] Delete error:", error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// DELETE /api/admin/delete-image/:filename - Delete an image from Railbucket
+adminRouter.delete("/delete-image/:filename", async (req, res) => {
+  try {
+    const filename = decodeURIComponent(req.params.filename);
+    
+    await deleteImageFromRailbucket(filename);
+    
+    res.json({ 
+      success: true, 
+      message: `Image deleted from Railbucket: ${filename}`,
+      filename: filename
+    });
+  } catch (error: any) {
+    console.error("[ADMIN] Image delete error:", error);
     res.status(500).json({ 
       success: false, 
       error: error.message 

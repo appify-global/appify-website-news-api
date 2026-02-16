@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import https from "https";
 import http from "http";
@@ -118,6 +118,30 @@ export function extractFilenameFromUrl(url: string): string | null {
     return null;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Delete an image from Railway Railbucket.
+ */
+export async function deleteImageFromRailbucket(filename: string): Promise<void> {
+  const bucketName = process.env.RAILBUCKET_BUCKET_NAME;
+  if (!bucketName) {
+    throw new Error("RAILBUCKET_BUCKET_NAME environment variable is not set");
+  }
+
+  const s3Client = getS3Client();
+  const deleteCommand = new DeleteObjectCommand({
+    Bucket: bucketName,
+    Key: filename,
+  });
+
+  try {
+    await s3Client.send(deleteCommand);
+    console.log(`[Railbucket] Image deleted: ${filename}`);
+  } catch (error: any) {
+    console.error(`[Railbucket] Delete failed for ${filename}:`, error);
+    throw new Error(`Railbucket delete failed: ${error.message}`);
   }
 }
 

@@ -6,7 +6,7 @@ import { URL } from "url";
 /**
  * Extract main content and image from an article URL using basic HTML parsing.
  */
-async function fetchArticleContent(url: string): Promise<{ content: string; imageUrl?: string }> {
+export async function fetchArticleContent(url: string): Promise<{ content: string; imageUrl?: string }> {
   return new Promise((resolve, reject) => {
     const parsedUrl = new URL(url);
     const client = parsedUrl.protocol === "https:" ? https : http;
@@ -70,14 +70,24 @@ async function fetchArticleContent(url: string): Promise<{ content: string; imag
           content = content.replace(/<style[\s\S]*?<\/style>/gi, "");
 
           const paragraphs = content.match(/<p[^>]*>([\s\S]*?)<\/p>/gi) || [];
-          const text = paragraphs
+          let text = paragraphs
             .map((p) => p.replace(/<[^>]+>/g, " ").trim())
             .filter((t) => t.length > 50)
             .slice(0, 30)
             .join("\n\n");
 
+          // Clean up standalone quotes from extracted HTML content
+          if (!text) {
+            text = content.replace(/<[^>]+>/g, " ").slice(0, 5000);
+          }
+          
+          // Remove standalone quote marks
+          text = text.replace(/\s+["']\s+/g, ' ');
+          text = text.replace(/\s+["']/g, '');
+          text = text.replace(/["']\s+/g, ' ');
+
           resolve({
-            content: text || content.replace(/<[^>]+>/g, " ").slice(0, 5000),
+            content: text,
             imageUrl,
           });
         });
@@ -200,26 +210,80 @@ function mergeIfThin(section: string[], fallback: string[]): string[] {
 }
 
 /**
- * Enforce minimum word count per section with multiple filler variants
+ * Enforce minimum word count per section - use more source content instead of generic filler
  */
-function ensureMinimumWords(section: string[], minWords = 150, coreConcept: string = "this technology", titleOrUrl: string = ""): string[] {
+function ensureMinimumWords(section: string[], minWords = 150, coreConcept: string = "this technology", titleOrUrl: string = "", sourceContent?: string, usedContent?: Set<string>): string[] {
   let wordCount = section.join(" ").split(/\s+/).length;
   if (wordCount >= minWords) return section;
 
-  // Multiple filler variants to avoid template footprint
+  // Helper to check if content is already used
+  const isContentUsed = (text: string): boolean => {
+    if (!usedContent) return false;
+    const key = text.substring(0, 50).toLowerCase();
+    return Array.from(usedContent).some(used => used.includes(key) || key.includes(used));
+  };
+
+  // Try to extract more content from source instead of using generic filler
+  if (sourceContent && sourceContent.length > 100) {
+    const sentences = sourceContent.split(/[.!?]+/)
+      .map(s => s.trim())
+      .filter(s => {
+        const lower = s.toLowerCase();
+        // Avoid attribution, quotes, very short sentences, and already used content
+        return s.length > 60 && 
+               !lower.includes("said") && 
+               !lower.includes("according") &&
+               !lower.includes("quoted") &&
+               !section.some(existing => existing.includes(s.substring(0, 30))) && // Avoid duplicates in this section
+               !isContentUsed(s); // Avoid duplicates across all sections
+      })
+      .slice(0, 3); // Get up to 3 more sentences
+    
+    if (sentences.length > 0) {
+      const additionalContent = sentences.map(s => expandPoint(s, titleOrUrl.split(' ')[0] || coreConcept, coreConcept));
+      const newWordCount = [...section, ...additionalContent].join(" ").split(/\s+/).length;
+      if (newWordCount >= minWords * 0.6) { // If we get to 60% of target, that's good enough
+        return [...section, ...additionalContent];
+      }
+    }
+  }
+
+  // Only use generic filler as last resort, and make it more unique per section
+  // Use a combination of section identifier and content length for more variety
+  const sectionHash = simpleHash(titleOrUrl + section.length + section.join('').length);
+  const mainTopic = titleOrUrl.split(/[:,-]/)[0]?.trim() || coreConcept;
+  
+  // More varied, topic-specific fillers - expanded list
   const fillers = [
-    `Before scaling ${coreConcept}, teams should define clear success metrics and ownership for ongoing monitoring.`,
-    `When adopting ${coreConcept}, integration constraints and data access rules often determine what is feasible in practice.`,
-    `Scaling ${coreConcept} typically requires change management, documentation, and guardrails to prevent misuse.`,
-    `For ${coreConcept} initiatives, start with one workflow, measure impact, then expand based on measurable outcomes.`,
-    `Organizations evaluating ${coreConcept} should assess governance frameworks, integration complexity, and measurable operational outcomes before scaling deployment.`,
-    `Successful ${coreConcept} deployment depends on aligning technology capabilities with business process requirements and user needs.`,
+    `The ${mainTopic} landscape continues to evolve with new developments and applications emerging regularly.`,
+    `Understanding the technical requirements and implementation considerations is essential for successful adoption of ${mainTopic}.`,
+    `Organizations exploring ${mainTopic} should evaluate how it aligns with their specific operational needs and strategic goals.`,
+    `The practical applications of ${mainTopic} extend across various use cases and industry sectors.`,
+    `Effective implementation of ${mainTopic} requires careful planning and consideration of integration requirements.`,
+    `As ${mainTopic} technology advances, new capabilities and features become available to organizations.`,
+    `The benefits of ${mainTopic} can be realized through strategic deployment and proper configuration.`,
+    `Organizations should assess their readiness and infrastructure requirements before adopting ${mainTopic}.`,
+    `The ${mainTopic} ecosystem includes various tools, platforms, and services that support different use cases.`,
+    `Successful integration of ${mainTopic} depends on understanding both technical and organizational factors.`,
+    `Companies implementing ${mainTopic} solutions often see improvements in efficiency and operational effectiveness.`,
+    `The adoption of ${mainTopic} requires evaluating both short-term benefits and long-term strategic value.`,
+    `Organizations considering ${mainTopic} should review case studies and industry best practices.`,
+    `The ${mainTopic} market is characterized by rapid innovation and continuous technological advancement.`,
+    `Effective use of ${mainTopic} involves understanding its capabilities and limitations.`,
   ];
   
-  // Deterministic selection based on title/URL hash (stable per article)
-  const hash = simpleHash(titleOrUrl);
-  const filler = fillers[hash % fillers.length];
+  // Try different fillers until we find one that hasn't been used
+  let fillerIndex = sectionHash % fillers.length;
+  let attempts = 0;
+  let filler = fillers[fillerIndex];
   
+  while (isContentUsed(filler) && attempts < fillers.length) {
+    fillerIndex = (fillerIndex + 1) % fillers.length;
+    filler = fillers[fillerIndex];
+    attempts++;
+  }
+  
+  // Only add one filler sentence, not multiple
   return section.concat(filler);
 }
 
@@ -229,9 +293,16 @@ function ensureMinimumWords(section: string[], minWords = 150, coreConcept: stri
 function cleanContent(content: string): string {
   let cleaned = content;
   
-  // Remove quote marks but keep content
+  // Remove quote marks but keep content (matched pairs first)
   cleaned = cleaned.replace(/"([^"]{20,})"/g, '$1');
   cleaned = cleaned.replace(/'([^']{20,})'/g, '$1');
+  
+  // Remove standalone quote marks (not part of matched pairs)
+  // Remove quotes that are alone or at word boundaries
+  cleaned = cleaned.replace(/\s+["']\s+/g, ' '); // Standalone quotes with spaces
+  cleaned = cleaned.replace(/\s+["']/g, ''); // Trailing quotes
+  cleaned = cleaned.replace(/["']\s+/g, ' '); // Leading quotes
+  cleaned = cleaned.replace(/^["']+|["']+$/g, ''); // Quotes at start/end of string
   
   // Remove attribution phrases
   cleaned = cleaned.replace(/\s+(said|says|according to|told|stated|quoted|in an interview|in a statement)\s*[.!?]/gi, '.');
@@ -246,16 +317,18 @@ function cleanContent(content: string): string {
   // Remove standalone names/pronouns
   cleaned = cleaned.replace(/^\s*([A-Z][a-z]+|she|he|they|it)\s*\.\s*$/gm, '');
   
-  // Clean up extra spaces
+  // Clean up extra spaces and remove any remaining standalone punctuation
   cleaned = cleaned.replace(/\s{2,}/g, ' ').trim();
+  cleaned = cleaned.replace(/\s+["']\s+/g, ' '); // One more pass for standalone quotes
   
   return cleaned;
 }
 
 /**
- * Generate SEO-friendly headings based on RSS article title (not generic)
+ * Generate unique SEO-friendly headings based on RSS article title and content
+ * Creates headings that are specific to each article, not generic templates
  */
-function getDynamicHeadings(rssTitle: string, coreConcept: string): {
+function getDynamicHeadings(rssTitle: string, coreConcept: string, rssContent?: string): {
   h1: string;
   section1: string;
   section2: string;
@@ -263,58 +336,89 @@ function getDynamicHeadings(rssTitle: string, coreConcept: string): {
   section4: string;
 } {
   const titleLower = rssTitle.toLowerCase();
+  const contentLower = (rssContent || "").toLowerCase();
   
-  // Use RSS title as H1, but make it SEO-friendly
+  // Use RSS title as H1
   let h1 = rssTitle;
-  // If title is too short or doesn't have SEO structure, enhance it slightly
-  if (rssTitle.length < 40 || !rssTitle.includes(":") && !rssTitle.includes("-")) {
-    // Add a subtle SEO enhancement without changing the meaning
-    const words = rssTitle.split(/\s+/);
-    if (words.length < 6) {
-      h1 = `${rssTitle}: A Comprehensive Guide`;
-    } else {
-      h1 = rssTitle; // Keep original if it's already substantial
-    }
-  }
   
-  // Generate topic-specific section headings based on RSS title content
+  // Extract key nouns and topics from title for unique headings
+  const titleWords = rssTitle.split(/\s+/).filter(w => w.length > 3);
+  const importantWords = titleWords.filter(w => {
+    const lower = w.toLowerCase();
+    return !['the', 'and', 'for', 'with', 'from', 'that', 'this', 'what', 'when', 'where', 'how', 'why'].includes(lower);
+  });
+  
+  // Generate unique headings based on actual article content
   let section1: string;
   let section2: string;
   let section3: string;
   let section4: string;
   
-  if (titleLower.includes("scam") || titleLower.includes("safe") || titleLower.includes("security") || titleLower.includes("risk") || titleLower.includes("protect")) {
-    section1 = "Understanding the Risks and Security Concerns";
-    section2 = "Key Safety Measures and Best Practices";
-    section3 = "How to Stay Protected and Mitigate Threats";
-    section4 = "Future Outlook and Evolving Security Landscape";
+  // Extract main topic from title (first significant noun phrase)
+  const mainTopic = importantWords.slice(0, 3).join(' ') || rssTitle.split(':')[0] || rssTitle.split('-')[0];
+  
+  // Generate unique headings based on what the article is actually about
+  if (titleLower.includes("review") || titleLower.includes("test")) {
+    section1 = `What Is ${mainTopic}?`;
+    section2 = `Key Features and Capabilities`;
+    section3 = `Performance and User Experience`;
+    section4 = `Final Verdict and Recommendations`;
+  } else if (titleLower.includes("scam") || titleLower.includes("safe") || titleLower.includes("security") || titleLower.includes("risk") || titleLower.includes("protect")) {
+    section1 = `Understanding the Security Implications of ${mainTopic}`;
+    section2 = `Key Risks and Vulnerabilities to Consider`;
+    section3 = `Protective Measures and Best Practices`;
+    section4 = `Staying Safe in an Evolving Threat Landscape`;
   } else if (titleLower.includes("company") || titleLower.includes("companies") || titleLower.includes("business")) {
-    section1 = "Current Landscape and Industry Trends";
-    section2 = "Key Benefits and Strategic Advantages";
-    section3 = "Implementation Strategies for Organizations";
-    section4 = "Future Outlook and Market Evolution";
+    section1 = `How Companies Are Leveraging ${mainTopic}`;
+    section2 = `Strategic Benefits and Competitive Advantages`;
+    section3 = `Implementation Approaches and Considerations`;
+    section4 = `Industry Trends and Future Developments`;
   } else if (titleLower.includes("guide") || titleLower.includes("how to") || titleLower.includes("best practices") || titleLower.includes("tips")) {
-    section1 = "Understanding the Fundamentals";
-    section2 = "Key Principles and Best Practices";
-    section3 = "Implementation Strategies and Approaches";
-    section4 = "Advanced Considerations and Future Trends";
+    section1 = `Getting Started with ${mainTopic}`;
+    section2 = `Essential Concepts and Principles`;
+    section3 = `Step-by-Step Implementation Guide`;
+    section4 = `Advanced Tips and Optimization Strategies`;
   } else if (titleLower.includes("future") || titleLower.includes("trend") || titleLower.includes("outlook") || titleLower.includes("predict")) {
-    section1 = "Current State and Emerging Patterns";
-    section2 = "Key Trends and Developments";
-    section3 = "Strategic Implications for Organizations";
-    section4 = "Future Outlook and Predictions";
+    section1 = `Current State of ${mainTopic}`;
+    section2 = `Emerging Trends and Developments`;
+    section3 = `Strategic Implications for Organizations`;
+    section4 = `Future Predictions and Outlook`;
+  } else if (titleLower.includes("kills") || titleLower.includes("deal") || titleLower.includes("uproar") || titleLower.includes("news")) {
+    // News/event articles
+    section1 = `What Happened: The ${mainTopic} Story`;
+    section2 = `Key Details and Context`;
+    section3 = `Implications and Industry Impact`;
+    section4 = `What This Means Going Forward`;
+  } else if (titleLower.includes("gear") || titleLower.includes("equipment") || titleLower.includes("hardware")) {
+    section1 = `Understanding ${mainTopic} Technology`;
+    section2 = `Key Features and Innovations`;
+    section3 = `Applications and Use Cases`;
+    section4 = `Future Developments and Trends`;
   } else if (titleLower.includes("ai") || titleLower.includes("artificial intelligence")) {
-    section1 = "How AI Technology Works and Functions";
-    section2 = "Key Benefits and Applications";
-    section3 = "Implementation Strategies and Best Practices";
-    section4 = "Future Outlook for AI Development";
+    // Make AI headings more specific to the actual topic
+    if (titleLower.includes("olympic") || titleLower.includes("sports")) {
+      section1 = `How AI and Technology Are Transforming ${mainTopic}`;
+      section2 = `Innovative Applications in Sports and Performance`;
+      section3 = `Technical Implementation and Design`;
+      section4 = `Future of Technology-Enhanced Athletics`;
+    } else if (titleLower.includes("overview") || titleLower.includes("overviews")) {
+      section1 = `Understanding ${mainTopic} and How It Works`;
+      section2 = `Potential Risks and Limitations`;
+      section3 = `Best Practices for Safe Usage`;
+      section4 = `Future Improvements and Developments`;
+    } else {
+      // Generic AI but still unique
+      section1 = `Exploring ${mainTopic}: An Overview`;
+      section2 = `Key Capabilities and Applications`;
+      section3 = `Implementation Considerations`;
+      section4 = `Future Outlook and Evolution`;
+    }
   } else {
-    // Generic but still topic-relevant based on core concept
-    const capitalized = coreConcept.charAt(0).toUpperCase() + coreConcept.slice(1);
-    section1 = `Understanding ${capitalized} and Its Applications`;
-    section2 = `Key Benefits and Strategic Advantages`;
-    section3 = `Implementation Strategies and Best Practices`;
-    section4 = `Future Outlook and Emerging Trends`;
+    // Generate unique headings based on main topic
+    section1 = `Understanding ${mainTopic}`;
+    section2 = `Key Features and Benefits`;
+    section3 = `Implementation and Best Practices`;
+    section4 = `Future Trends and Developments`;
   }
   
   return { h1, section1, section2, section3, section4 };
@@ -395,23 +499,63 @@ function generateTopicSpecificContent(rssTitle: string, rssContent: string, core
     }
   }
   
-  // Section 2: Benefits / Applications - make it topic-specific
+  // Section 2: Benefits / Applications - use actual RSS content when available
   const titleWords = rssTitle.toLowerCase();
-  if (titleWords.includes("scam") || titleWords.includes("safe") || titleWords.includes("security")) {
+  
+  // Try to extract actual benefits/features from RSS content first
+  const benefitSentences = rssContent.split(/[.!?]+/).filter(s => {
+    const lower = s.toLowerCase();
+    return (lower.includes("benefit") || lower.includes("advantage") || lower.includes("feature") || 
+            lower.includes("capability") || lower.includes("improve") || lower.includes("enhance")) &&
+           s.trim().length > 50;
+  }).slice(0, 2);
+  
+  if (benefitSentences.length > 0) {
+    section2.push(...benefitSentences.map(s => expandPoint(s.trim(), rssTitle, coreConcept)));
+  } else if (titleWords.includes("scam") || titleWords.includes("safe") || titleWords.includes("security")) {
     section2.push(`Addressing the security concerns highlighted in ${rssTitle} provides organizations with essential protection mechanisms. Implementing appropriate safety measures helps prevent potential threats and vulnerabilities. These safeguards become critical as organizations scale their operations and handle sensitive data.`);
   } else if (titleWords.includes("company") || titleWords.includes("companies")) {
     section2.push(`The developments discussed in ${rssTitle} offer significant benefits for organizations exploring ${coreConcept}. Companies can achieve improved efficiency, enhanced capabilities, and better strategic positioning through informed adoption. These advantages become more significant as organizations integrate these technologies into their core business processes.`);
   } else {
-    section2.push(`The benefits of ${coreConcept} extend across multiple dimensions of organizational operations. Companies can achieve improved efficiency, enhanced decision-making capabilities, and better resource utilization through strategic implementation. These advantages become more significant as organizations scale their adoption and integrate these technologies into core business processes.`);
+    // Use more specific content from RSS if available
+    const relevantContent = rssContent.split(/[.!?]+/).filter(s => {
+      const lower = s.toLowerCase();
+      return !lower.includes("said") && !lower.includes("according") && s.trim().length > 60;
+    }).slice(0, 1);
+    
+    if (relevantContent.length > 0) {
+      section2.push(expandPoint(relevantContent[0].trim(), rssTitle, coreConcept));
+    } else {
+      section2.push(`The benefits of ${coreConcept} extend across multiple dimensions of organizational operations. Companies can achieve improved efficiency, enhanced decision-making capabilities, and better resource utilization through strategic implementation. These advantages become more significant as organizations scale their adoption and integrate these technologies into core business processes.`);
+    }
   }
   
-  // Section 3: Implementation / Strategy - make it topic-specific
-  if (titleWords.includes("scam") || titleWords.includes("safe") || titleWords.includes("security")) {
+  // Section 3: Implementation / Strategy - extract from RSS content when possible
+  const implementationSentences = rssContent.split(/[.!?]+/).filter(s => {
+    const lower = s.toLowerCase();
+    return (lower.includes("implement") || lower.includes("deploy") || lower.includes("use") || 
+            lower.includes("approach") || lower.includes("strategy") || lower.includes("method")) &&
+           s.trim().length > 50;
+  }).slice(0, 2);
+  
+  if (implementationSentences.length > 0) {
+    section3.push(...implementationSentences.map(s => expandPoint(s.trim(), rssTitle, coreConcept)));
+  } else if (titleWords.includes("scam") || titleWords.includes("safe") || titleWords.includes("security")) {
     section3.push(`Implementing the safety measures discussed in ${rssTitle} requires a structured approach that addresses technical, organizational, and strategic considerations. Organizations should begin by clearly defining security objectives, assessing current vulnerabilities, and identifying protection mechanisms. This planning phase is critical for ensuring comprehensive protection and minimizing risks.`);
   } else if (titleWords.includes("guide") || titleWords.includes("how to")) {
     section3.push(`Following the guidance in ${rssTitle} requires a structured approach that addresses technical, organizational, and strategic considerations. Organizations should begin by clearly defining objectives, assessing current capabilities, and identifying implementation steps. This planning phase is critical for ensuring successful adoption and maximizing value from the investment.`);
   } else {
-    section3.push(`Implementing ${coreConcept} successfully requires a structured approach that addresses technical, organizational, and strategic considerations. Organizations should begin by clearly defining objectives, assessing current capabilities, and identifying integration points with existing systems. This planning phase is critical for ensuring smooth deployment and maximizing value from the investment.`);
+    // Use more content from RSS
+    const relevantContent = rssContent.split(/[.!?]+/).filter(s => {
+      const lower = s.toLowerCase();
+      return !lower.includes("said") && !lower.includes("according") && s.trim().length > 60;
+    }).slice(1, 2);
+    
+    if (relevantContent.length > 0) {
+      section3.push(expandPoint(relevantContent[0].trim(), rssTitle, coreConcept));
+    } else {
+      section3.push(`Implementing ${coreConcept} successfully requires a structured approach that addresses technical, organizational, and strategic considerations. Organizations should begin by clearly defining objectives, assessing current capabilities, and identifying integration points with existing systems. This planning phase is critical for ensuring smooth deployment and maximizing value from the investment.`);
+    }
   }
   
   // Section 4: Considerations / Future - make it topic-specific
@@ -447,16 +591,27 @@ function extractKeyPoints(content: string, title: string): string[] {
 
 /**
  * Expand a key point into a full paragraph
+ * Uses less generic filler, preserves more of the original content
  */
 function expandPoint(point: string, rssTitle: string, coreConcept: string): string {
   // Remove quotes and attribution
-  let expanded = point.replace(/^["']|["']$/g, "").trim();
+  let expanded = point.replace(/^["']+|["']+$/g, "").trim();
   
-  // If it's too short, expand it
-  const wordCount = expanded.split(/\s+/).length;
-  if (wordCount < 80) {
-    expanded += ` This aspect of ${coreConcept} requires careful consideration of technical requirements, implementation challenges, and potential benefits. Organizations evaluating these solutions should assess how they align with strategic objectives and operational needs. Understanding these factors helps ensure successful adoption and maximizes the value derived from implementation.`;
-  }
+  // Remove standalone quote marks
+  expanded = expanded.replace(/\s+["']\s+/g, ' ');
+  expanded = expanded.replace(/\s+["']/g, '');
+  expanded = expanded.replace(/["']\s+/g, ' ');
+  
+  // Remove attribution phrases that make content generic
+  expanded = expanded.replace(/\s+(said|says|according to|told|stated|quoted|in an interview|in a statement)\s*[.!?]/gi, '.');
+  expanded = expanded.replace(/\([^)]*\b(said|says|according to|told|stated|quoted)\b[^)]*\)/gi, '');
+  
+  // DON'T add generic filler - just return the cleaned point as-is
+  // If it's too short, that's okay - better than generic filler
+  // The ensureMinimumWords function will handle adding content if needed
+  
+  // Final cleanup of any remaining standalone quotes
+  expanded = expanded.replace(/\s+["']\s+/g, ' ').trim();
   
   return expanded;
 }
@@ -480,7 +635,7 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     
     // Extract core concept for dynamic headings
     const coreConcept = extractCoreConcept(item.title, sourceContent);
-    const headings = getDynamicHeadings(item.title, coreConcept); // Pass RSS title for topic-specific headings
+    const headings = getDynamicHeadings(item.title, coreConcept, sourceContent); // Pass RSS title and content for unique headings
     
     // Generate topic-specific content based on RSS article
     const topicContent = generateTopicSpecificContent(item.title, sourceContent, coreConcept);
@@ -503,35 +658,98 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Merge topic-specific content with extracted content
     const titleOrUrl = item.title + item.link;
     
-    // Section 1: Combine topic-specific with extracted content
-    let section1Content = [...topicContent.section1];
+    // Track all used content across sections to prevent duplicates
+    const usedContent: Set<string> = new Set();
+    
+    // Helper to check if content is already used
+    const isContentUsed = (text: string): boolean => {
+      const key = text.substring(0, 50).toLowerCase();
+      return Array.from(usedContent).some(used => used.includes(key) || key.includes(used));
+    };
+    
+    // Helper to mark content as used
+    const markAsUsed = (text: string) => {
+      usedContent.add(text.substring(0, 50).toLowerCase());
+    };
+    
+    // Section 1: Prioritize extracted content over generic templates
+    let section1Content: string[] = [];
+    // Use actual extracted content first - get more content
     if (grouped.general.length > 0) {
-      section1Content.push(...grouped.general.slice(0, 2));
+      const generalContent = grouped.general.filter(p => !isContentUsed(p)).slice(0, 5);
+      section1Content.push(...generalContent);
+      generalContent.forEach(markAsUsed);
     }
-    section1Content = ensureMinimumWords(section1Content, 200, coreConcept, titleOrUrl);
+    // Only add template content if we don't have enough real content
+    if (section1Content.length === 0) {
+      section1Content = [...topicContent.section1];
+    } else if (section1Content.join(' ').split(/\s+/).length < 150) {
+      // Add one template paragraph only if needed
+      section1Content.push(...topicContent.section1.slice(0, 1));
+    }
+    section1Content = ensureMinimumWords(section1Content, 200, coreConcept, titleOrUrl + "section1", sourceContent, usedContent);
+    section1Content.forEach(markAsUsed);
     
-    // Section 2: Benefits
-    let section2Content = [...topicContent.section2];
+    // Section 2: Prioritize extracted content - use more from source
+    let section2Content: string[] = [];
     if (grouped.benefits.length > 0) {
-      section2Content.push(...grouped.benefits.slice(0, 2));
+      const benefitsContent = grouped.benefits.filter(p => !isContentUsed(p)).slice(0, 5);
+      section2Content.push(...benefitsContent);
+      benefitsContent.forEach(markAsUsed);
     }
-    section2Content = ensureMinimumWords(section2Content, 200, coreConcept, titleOrUrl);
+    // Also use general content if benefits are limited
+    if (section2Content.length < 2 && grouped.general.length > 0) {
+      const additionalGeneral = grouped.general.filter(p => !isContentUsed(p)).slice(0, 2);
+      section2Content.push(...additionalGeneral);
+      additionalGeneral.forEach(markAsUsed);
+    }
+    if (section2Content.length === 0) {
+      section2Content = [...topicContent.section2];
+    } else if (section2Content.join(' ').split(/\s+/).length < 150) {
+      section2Content.push(...topicContent.section2.slice(0, 1));
+    }
+    section2Content = ensureMinimumWords(section2Content, 200, coreConcept, titleOrUrl + "section2", sourceContent, usedContent);
+    section2Content.forEach(markAsUsed);
     
-    // Section 3: Implementation
-    let section3Content = [...topicContent.section3];
+    // Section 3: Prioritize extracted content - use more from source
+    let section3Content: string[] = [];
     if (grouped.implementation.length > 0) {
-      section3Content.push(...grouped.implementation.slice(0, 2));
+      const implementationContent = grouped.implementation.filter(p => !isContentUsed(p)).slice(0, 5);
+      section3Content.push(...implementationContent);
+      implementationContent.forEach(markAsUsed);
     }
-    section3Content = ensureMinimumWords(section3Content, 200, coreConcept, titleOrUrl);
+    // Also use general content if implementation is limited
+    if (section3Content.length < 2 && grouped.general.length > 2) {
+      const additionalGeneral = grouped.general.filter(p => !isContentUsed(p)).slice(0, 2);
+      section3Content.push(...additionalGeneral);
+      additionalGeneral.forEach(markAsUsed);
+    }
+    if (section3Content.length === 0) {
+      section3Content = [...topicContent.section3];
+    } else if (section3Content.join(' ').split(/\s+/).length < 150) {
+      section3Content.push(...topicContent.section3.slice(0, 1));
+    }
+    section3Content = ensureMinimumWords(section3Content, 200, coreConcept, titleOrUrl + "section3", sourceContent, usedContent);
+    section3Content.forEach(markAsUsed);
     
-    // Section 4: Future/Considerations
-    let section4Content = [...topicContent.section4];
+    // Section 4: Prioritize extracted content - use more from source
+    let section4Content: string[] = [];
     if (grouped.future.length > 0) {
-      section4Content.push(...grouped.future.slice(0, 2));
-    } else if (grouped.general.length > 2) {
-      section4Content.push(...grouped.general.slice(2, 4));
+      const futureContent = grouped.future.filter(p => !isContentUsed(p)).slice(0, 5);
+      section4Content.push(...futureContent);
+      futureContent.forEach(markAsUsed);
+    } else if (grouped.general.length > 4) {
+      const additionalGeneral = grouped.general.filter(p => !isContentUsed(p)).slice(0, 4);
+      section4Content.push(...additionalGeneral);
+      additionalGeneral.forEach(markAsUsed);
     }
-    section4Content = ensureMinimumWords(section4Content, 200, coreConcept, titleOrUrl);
+    if (section4Content.length === 0) {
+      section4Content = [...topicContent.section4];
+    } else if (section4Content.join(' ').split(/\s+/).length < 150) {
+      section4Content.push(...topicContent.section4.slice(0, 1));
+    }
+    section4Content = ensureMinimumWords(section4Content, 200, coreConcept, titleOrUrl + "section4", sourceContent, usedContent);
+    section4Content.forEach(markAsUsed);
     
     // Build blog structure with topic-specific content
     const blogSections: string[] = [
@@ -563,7 +781,7 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     // Fallback: Generate topic-specific content from RSS snippet
     const fallbackContent = item.contentSnippet || item.content || item.title;
     const coreConcept = extractCoreConcept(item.title, fallbackContent);
-    const headings = getDynamicHeadings(item.title, coreConcept); // Pass RSS title for topic-specific headings
+    const headings = getDynamicHeadings(item.title, coreConcept, fallbackContent); // Pass RSS title and content for unique headings
     const topicContent = generateTopicSpecificContent(item.title, fallbackContent, coreConcept);
     
     return `# ${headings.h1}\n\n${topicContent.definition}\n\n## ${headings.section1}\n\n${topicContent.section1.join("\n\n")}\n\n## ${headings.section2}\n\n${topicContent.section2.join("\n\n")}\n\n## ${headings.section3}\n\n${topicContent.section3.join("\n\n")}\n\n## ${headings.section4}\n\n${topicContent.section4.join("\n\n")}`;

@@ -173,8 +173,7 @@ export function generateSlug(title: string): string {
  * Simple, straightforward extraction from first paragraph(s).
  */
 export function generateExcerpt(blocks: ContentBlock[], metaDescription?: string): string {
-  // Simple approach: Extract from first 1-2 paragraphs only
-  // Filter out any paragraphs that look like headings (start with # or are too short)
+  // Extract paragraphs, prioritizing actual article content over generic definitions
   const paragraphs = blocks
     .filter((b) => b.type === "paragraph")
     .map((p) => {
@@ -200,20 +199,80 @@ export function generateExcerpt(blocks: ContentBlock[], metaDescription?: string
       if (t.match(/^#+\s+/)) return false; // Markdown headings
       if (t.match(/^[A-Z][^.!?]{0,50}:\s*A Strategic Guide/i)) return false; // H1 patterns
       if (t.match(/^[A-Z][^.!?]{0,50}:\s*[A-Z]/)) return false; // Title-like patterns
+      
+      // Filter out generic definitions (these shouldn't be in excerpts)
+      const lower = t.toLowerCase();
+      if (lower.match(/^[^.]*\b(refers to|is the process|is a|is an|is defined as|means|involves creating|involves developing)\b/)) {
+        return false; // Skip generic definitions
+      }
+      if (lower.match(/\b(refers to the process|is the process of creating|is a transformative approach|provides unprecedented capabilities)\b/)) {
+        return false; // Skip more generic definition patterns
+      }
+      // Filter out sentences that are just definitions
+      if (lower.match(/^[^.]*\b(technology|software|application|system|platform)\b[^.]*\b(refers to|is the|is a|is an|means|involves)\b/)) {
+        return false;
+      }
+      
       return true;
-    })
-    .slice(0, 2); // Take first 2 valid paragraphs
+    });
+  
+  // Prioritize: skip first paragraph if it's a definition, get actual content
+  // Look for paragraphs that contain actual news/information (not definitions)
+  const contentParagraphs = paragraphs.filter((p, index) => {
+    const lower = p.toLowerCase();
+    // Skip if it's clearly a definition in the first few paragraphs
+    if (index < 2 && lower.match(/\b(refers to|is the process|is defined as|means|involves)\b/)) {
+      return false;
+    }
+    // Prefer paragraphs with actual information (dates, names, events, actions)
+    const hasActualInfo = lower.match(/\b(reached|announced|reported|said|according|recently|latest|new|launched|introduced)\b/) ||
+                         lower.match(/\b(2024|2025|\d{4})\b/) || // Years
+                         lower.match(/[A-Z][a-z]+ [A-Z][a-z]+/); // Proper nouns (names)
+    return true; // Include all non-definition paragraphs
+  });
+  
+  // Take first 2-3 paragraphs that are actual content (not definitions)
+  const selectedParagraphs = contentParagraphs.slice(0, 3);
     
-  if (paragraphs.length === 0) {
-    // Fallback to meta description if no paragraphs
+  if (selectedParagraphs.length === 0) {
+    // Fallback to meta description if no good paragraphs found
     if (metaDescription) {
       return metaDescription.slice(0, 250).trim();
+    }
+    // Last resort: use any paragraph (even if it's a definition)
+    if (paragraphs.length > 0) {
+      return paragraphs[0].slice(0, 250).trim();
     }
     return "";
   }
 
   // Join paragraphs
-  let excerpt = paragraphs.join(" ").trim();
+  let excerpt = selectedParagraphs.join(" ").trim();
+
+  // Filter out generic filler text and definitions that shouldn't be in excerpts
+  const genericPatterns = [
+    /This aspect of technology requires careful consideration[^.]*/gi,
+    /This development reflects broader trends[^.]*/gi,
+    /Organizations evaluating these solutions should assess[^.]*/gi,
+    /Understanding these factors helps ensure successful adoption[^.]*/gi,
+    /This aspect of .* requires careful consideration[^.]*/gi,
+    /.*\b(refers to the process|is the process of creating|is a transformative approach|provides unprecedented capabilities)\b[^.]*/gi,
+    /.*\b(refers to|is the process|is defined as|means|involves creating|involves developing)\b[^.]*/gi,
+  ];
+  
+  genericPatterns.forEach(pattern => {
+    excerpt = excerpt.replace(pattern, '');
+  });
+  
+  // If excerpt is too short after filtering, try meta description (it's usually more specific)
+  if (excerpt.length < 50 && metaDescription && metaDescription.length > 50) {
+    // Meta description is often a better summary than generic definitions
+    excerpt = metaDescription.slice(0, 250).trim();
+  }
+  
+  // Clean up any double spaces or weird punctuation left behind
+  excerpt = excerpt.replace(/\s{2,}/g, ' ').trim();
+  excerpt = excerpt.replace(/^[.,;:\s]+/, ''); // Remove leading punctuation
 
   // Limit to ~200-250 characters (2-3 lines)
   if (excerpt.length > 250) {
