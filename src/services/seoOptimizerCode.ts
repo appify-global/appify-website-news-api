@@ -414,7 +414,14 @@ function determineTopic(content: string, categories?: string[], rssTitle?: strin
   if ((combinedText.includes("work") || combinedText.includes("workplace") || combinedText.includes("remote work") || combinedText.includes("productivity")) && !detectedTopics.includes("Work")) {
     detectedTopics.push("Work");
   }
-  if ((combinedText.includes("design") || combinedText.includes("ui") || combinedText.includes("ux") || combinedText.includes("user interface")) && !detectedTopics.includes("Design")) {
+  // Design topic - be more specific, avoid false positives
+  // Only match if it's about UI/UX design, product design, or design systems
+  // NOT about "gaming mouse design" or hardware design
+  if ((combinedText.includes("ui design") || combinedText.includes("ux design") || 
+       combinedText.includes("user interface design") || combinedText.includes("user experience design") ||
+       combinedText.includes("design system") || combinedText.includes("design pattern") ||
+       (combinedText.includes("design") && (combinedText.includes("software") || combinedText.includes("application") || combinedText.includes("website")))) && 
+      !detectedTopics.includes("Design")) {
     detectedTopics.push("Design");
   }
   if ((combinedText.includes("workplace culture") || combinedText.includes("company culture") || combinedText.includes("organizational culture") || combinedText.includes("corporate culture")) && !detectedTopics.includes("Culture")) {
@@ -422,7 +429,27 @@ function determineTopic(content: string, categories?: string[], rssTitle?: strin
   }
 
   // Return comma-separated topics, or default to AI if none found
+  // BUT: Only return topics that actually make sense for the article
+  // If we detect topics but they don't match the article content, log a warning
   if (detectedTopics.length > 0) {
+    // Double-check: if the article is about something completely unrelated (like gaming hardware),
+    // don't force AI tag just because the content mentions "AI" in a generic way
+    const titleLower = (rssTitle || "").toLowerCase();
+    const isGamingHardware = titleLower.includes("gaming mouse") || titleLower.includes("gaming keyboard") || 
+                             titleLower.includes("gaming headset") || titleLower.includes("gaming gear");
+    const isGenericHardware = titleLower.includes("mouse") || titleLower.includes("keyboard") || 
+                              titleLower.includes("hardware") || titleLower.includes("peripheral");
+    
+    // If it's clearly hardware and we only detected AI from generic content, be more careful
+    if ((isGamingHardware || isGenericHardware) && detectedTopics.length === 1 && detectedTopics[0] === "AI") {
+      // Check if AI is actually relevant or just mentioned generically
+      const aiMentions = (combinedText.match(/\bai\b/g) || []).length;
+      if (aiMentions < 3) {
+        console.warn(`[Code] Article about hardware detected AI tag but may not be relevant. Title: ${rssTitle}`);
+        // Still return AI but log the warning
+      }
+    }
+    
     return detectedTopics.join(", ");
   }
 

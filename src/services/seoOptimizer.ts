@@ -177,12 +177,42 @@ Focus on ONE primary keyword plus 3-5 long-tail variations. Remove any generic f
     .replace(/TOPICS:\s*.+/, "")
     .trim();
 
+  // Validate and filter topics - only allow our approved topics
+  const allowedTopics = ["AI", "Automation", "Web", "Startups", "Defi", "Web3", "Work", "Design", "Culture"];
+  let rawTopics = topicsMatch?.[1]?.trim() || "AI";
+  
+  // Parse comma-separated topics and validate each one
+  const topicList = rawTopics.split(',').map(t => t.trim()).filter(t => t.length > 0);
+  const validTopics: string[] = [];
+  
+  for (const topic of topicList) {
+    // Check exact match
+    if (allowedTopics.includes(topic)) {
+      if (!validTopics.includes(topic)) {
+        validTopics.push(topic);
+      }
+    } else {
+      // Check case-insensitive match
+      const matched = allowedTopics.find(t => t.toLowerCase() === topic.toLowerCase());
+      if (matched && !validTopics.includes(matched)) {
+        validTopics.push(matched);
+      }
+    }
+  }
+  
+  // If no valid topics found, default to AI (but log a warning)
+  const finalTopics = validTopics.length > 0 ? validTopics.join(", ") : "AI";
+  
+  if (validTopics.length === 0 || validTopics.length !== topicList.length) {
+    console.warn(`[OpenAI] Invalid topics detected: "${rawTopics}". Filtered to: "${finalTopics}"`);
+  }
+
   console.log("[OpenAI] SEO optimization complete.");
 
   return {
     optimizedContent,
     metaTitle: metaTitleMatch?.[1]?.trim().slice(0, 60) || "",
     metaDescription: metaDescMatch?.[1]?.trim().slice(0, 160) || "",
-    topics: topicsMatch?.[1]?.trim() || "AI",
+    topics: finalTopics,
   };
 }
