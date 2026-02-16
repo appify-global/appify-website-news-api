@@ -27,7 +27,7 @@ import OpenAI from "openai";
  * Code version: Faster, no API costs, uses RSS content extraction (OPTIONAL)
  */
 const USE_CODE_GENERATION = process.env.USE_CODE_GENERATION === "true"; // Default to OpenAI, only use code-based if explicitly enabled
-const USE_AI_FILTER = process.env.USE_AI_FILTER !== "false"; // Default to true - use OpenAI for semantic filtering instead of strict keyword matching
+const USE_AI_FILTER = process.env.USE_AI_FILTER === "true"; // Default to false - use code-based filtering to avoid rate limits. Set to "true" to enable AI filtering.
 
 // Select functions based on environment variable
 // Both versions are available - just switch the flag to toggle
