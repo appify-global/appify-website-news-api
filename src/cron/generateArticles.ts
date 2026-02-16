@@ -458,12 +458,13 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
       // Step 8: Get image - use RSS image first, try to upload it, only use Grok if RSS image fails
       // All images are uploaded to Railbucket for consistent storage
       // Note: For code-based generation, generateBlogContent may have already extracted imageUrl from article page
+      // Check imageUrl again after content generation (it may have been set during generateBlogContent)
       let imageUrl = item.imageUrl || item.enclosure?.url || "";
       
       if (imageUrl) {
         console.log(`[Pipeline] Image found: ${imageUrl.substring(0, 80)}... (from ${item.imageUrl ? 'article page/RSS' : 'RSS enclosure'})`);
       } else {
-        console.log("[Pipeline] No RSS image found in feed or article page");
+        console.log("[Pipeline] No RSS image found in feed or article page - will use Grok or placeholder");
       }
       
       if (imageUrl) {
@@ -523,7 +524,12 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
         },
       });
 
+      // Log final image URL being saved
+      const imageSource = imageUrl.includes('railbucket') ? 'Railbucket (from article/RSS)' : 
+                         imageUrl.includes('grok') ? 'Grok-generated' : 
+                         imageUrl.includes('unsplash') ? 'Placeholder' : 'Unknown';
       console.log(`[Pipeline] ✅ Saved article: ${article.slug} (status: published)`);
+      console.log(`[Pipeline] 📸 Image URL saved: ${imageUrl.substring(0, 100)}... (source: ${imageSource})`);
       articlesGenerated++; // Increment counter when article is successfully generated
     } catch (error) {
       console.error(`[Pipeline] Failed to process "${item.title}":`, error);
