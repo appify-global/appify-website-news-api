@@ -60,6 +60,45 @@ adminRouter.post("/publish-all", async (_req, res) => {
   }
 });
 
+// DELETE /api/admin/delete-recent - Delete recently created articles (last N articles or last X hours)
+adminRouter.delete("/delete-recent", async (req, res) => {
+  try {
+    const count = parseInt(req.query.count as string) || 10; // Default: delete last 10 articles
+    const hours = parseInt(req.query.hours as string); // Optional: delete articles from last X hours
+    
+    let whereClause: any = {};
+    
+    if (hours) {
+      // Delete articles created in the last X hours
+      const cutoffDate = new Date();
+      cutoffDate.setHours(cutoffDate.getHours() - hours);
+      whereClause.createdAt = { gte: cutoffDate };
+    } else {
+      // Delete last N articles by creation date
+      const recentArticles = await prisma.article.findMany({
+        orderBy: { createdAt: "desc" },
+        take: count,
+        select: { id: true },
+      });
+      whereClause.id = { in: recentArticles.map(a => a.id) };
+    }
+    
+    const result = await prisma.article.deleteMany({
+      where: whereClause,
+    });
+    
+    res.json({ 
+      success: true, 
+      message: `Deleted ${result.count} recent article(s)` 
+    });
+  } catch (error: any) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
 // POST /api/admin/regenerate-content - Regenerate content for all published articles (or articles with NULL content)
 adminRouter.post("/regenerate-content", async (_req, res) => {
   try {

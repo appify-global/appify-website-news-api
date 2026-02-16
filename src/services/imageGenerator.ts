@@ -6,8 +6,12 @@ let xai: OpenAI;
 
 function getXAI(): OpenAI {
   if (!xai) {
+    const apiKey = process.env.XAI_API_KEY;
+    if (!apiKey) {
+      throw new Error("XAI_API_KEY environment variable is not set");
+    }
     xai = new OpenAI({
-      apiKey: process.env.XAI_API_KEY,
+      apiKey: apiKey,
       baseURL: "https://api.x.ai/v1",
     });
   }
@@ -21,6 +25,11 @@ function getXAI(): OpenAI {
  */
 export async function generateImage(title: string, topic: string): Promise<string> {
   console.log(`[Grok] Generating image for: ${title}`);
+  
+  // Check if API key is set
+  if (!process.env.XAI_API_KEY) {
+    throw new Error("XAI_API_KEY is not set. Cannot generate image with Grok.");
+  }
 
   // Create a more relevant prompt based on the article title and topic
   // Extract key concepts from title to make the image more relevant
