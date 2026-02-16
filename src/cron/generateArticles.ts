@@ -1,4 +1,4 @@
-import { fetchNewRSSItems, fetchAllRSSItems } from "../services/rss";
+import { fetchNewRSSItems, fetchAllRSSItems, RSSItem } from "../services/rss";
 import { generateBlogContent as generateBlogContentOpenAI } from "../services/contentGenerator";
 import { optimizeForSEO as optimizeForSEOOpenAI } from "../services/seoOptimizer";
 import { convertToHTML as convertToHTMLOpenAI } from "../services/htmlConverter";
@@ -27,6 +27,7 @@ import OpenAI from "openai";
  * Code version: Faster, no API costs, uses RSS content extraction (OPTIONAL)
  */
 const USE_CODE_GENERATION = process.env.USE_CODE_GENERATION === "true"; // Default to OpenAI, only use code-based if explicitly enabled
+const USE_AI_FILTER = process.env.USE_AI_FILTER !== "false"; // Default to true - use OpenAI for semantic filtering instead of strict keyword matching
 
 // Select functions based on environment variable
 // Both versions are available - just switch the flag to toggle
@@ -35,6 +36,56 @@ const optimizeForSEO = USE_CODE_GENERATION ? optimizeForSEOCode : optimizeForSEO
 const convertToHTML = USE_CODE_GENERATION ? convertToHTMLCode : convertToHTMLOpenAI;
 const generateBlogTitle = USE_CODE_GENERATION ? generateBlogTitleCode : generateBlogTitleOpenAI;
 const generateMetaDescription = USE_CODE_GENERATION ? generateMetaDescriptionCode : generateMetaDescriptionOpenAI;
+
+// Helper function for AI-based semantic article filtering
+async function checkArticleRelevanceWithAI(item: RSSItem): Promise<boolean> {
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn("[Filter] OpenAI API key not set, falling back to code-based filtering");
+    return false; // Will fall back to code-based filter
+  }
+
+  try {
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const articleText = `${item.title}\n\n${item.contentSnippet || item.content || ""}`.slice(0, 2000); // Limit to 2000 chars for cost efficiency
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini", // Use mini for cost efficiency
+      temperature: 0,
+      max_tokens: 10,
+      messages: [
+        {
+          role: "system",
+          content: `You are an article filter for a tech blog. Determine if an article is relevant to these topics:
+- AI (artificial intelligence, machine learning, AI software, AI agents, AI tools)
+- Web (web development, websites, web applications)
+- Startups (startups, accelerators, venture capital, entrepreneurship)
+- Web3 (blockchain, cryptocurrency, DeFi, NFTs)
+- Work (workforce, workplace, productivity, remote work)
+- Design (UX, UI, user experience, user interface design)
+- Culture (workplace culture, company culture)
+- Automation (workflow automation, business automation, process automation)
+- Digital transformation
+- App development (mobile apps, software development)
+
+Respond with ONLY "YES" if the article is relevant to any of these topics, or "NO" if it's not relevant.`,
+        },
+        {
+          role: "user",
+          content: `Article title: "${item.title}"\n\nArticle content: "${articleText}"\n\nIs this article relevant to any of the topics listed?`,
+        },
+      ],
+    });
+
+    const answer = response.choices[0]?.message?.content?.trim().toUpperCase();
+    const isRelevant = answer === "YES";
+    
+    console.log(`[Filter] AI filter result: ${isRelevant ? "✅ Relevant" : "❌ Not relevant"} - ${item.title.substring(0, 60)}...`);
+    return isRelevant;
+  } catch (error) {
+    console.error(`[Filter] AI filter failed:`, error);
+    return false; // Fall back to code-based filter on error
+  }
+}
 
 // Helper functions for duplicate detection
 function normalizeTitle(title: string): string {
@@ -137,12 +188,27 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
         continue;
       }
       
-      // Pre-filter: Check if article aligns with our core topics for long-term SEO authority
-      // Core topics: AI software, Digital transformation, App development, Workforce automation, Emerging technology strategy
-      const itemContent = (item.contentSnippet || item.content || item.title || "").toLowerCase();
+      // Pre-filter: Check if article aligns with our core topics
+      // Option 1: Use AI for semantic understanding (default, more flexible)
+      // Option 2: Use code-based keyword matching (fallback if AI fails or disabled)
+      let hasAlignment = false;
       
-      // Strong alignment indicators for our core topics
-      const hasStrongAlignment = 
+      if (USE_AI_FILTER && process.env.OPENAI_API_KEY) {
+        // Use AI for semantic filtering - understands context better
+        hasAlignment = await checkArticleRelevanceWithAI(item);
+        
+        // If AI says no, still check code-based as fallback (in case AI is too strict)
+        if (!hasAlignment) {
+          console.log(`[Filter] AI filter rejected, checking code-based filter as fallback...`);
+        }
+      }
+      
+      // Code-based keyword matching (used if AI filter disabled, failed, or as fallback)
+      if (!hasAlignment) {
+        const itemContent = (item.contentSnippet || item.content || item.title || "").toLowerCase();
+        
+        // Strong alignment indicators for our core topics
+        const hasStrongAlignment = 
         // AI software (including AI agents, AI tools, machine learning, AI industry, OpenAI)
         (itemContent.includes("ai software") || itemContent.includes("artificial intelligence software") ||
          itemContent.includes("machine learning software") || itemContent.includes("ai platform") ||
@@ -217,16 +283,17 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
       const hasTopicAlignment = titleHasAI || contentHasAI || hasWebTopic || hasStartupTopic || hasWeb3Topic || 
                                 hasWorkTopic || hasDesignTopic || hasCultureTopic || hasAutomationTopic;
       
-      // Proceed if there's alignment with core topics (strong alignment, title keywords, or any topic alignment)
-      // Accept articles with: strong alignment, strong title keywords, OR alignment with any allowed topic
-      const hasAlignment = hasStrongAlignment || 
-                          titleHasStrongKeyword || 
-                          hasTopicAlignment || // If article aligns with any of our topics, accept it
-                          (hasSecondaryAlignment && hasRelevantCategory) ||
-                          (hasSecondaryAlignment && itemContent.split(/\s+/).length > 50); // If content is substantial and has secondary alignment
+        // Proceed if there's alignment with core topics (strong alignment, title keywords, or any topic alignment)
+        // Accept articles with: strong alignment, strong title keywords, OR alignment with any allowed topic
+        hasAlignment = hasStrongAlignment || 
+                            titleHasStrongKeyword || 
+                            hasTopicAlignment || // If article aligns with any of our topics, accept it
+                            (hasSecondaryAlignment && hasRelevantCategory) ||
+                            (hasSecondaryAlignment && itemContent.split(/\s+/).length > 50); // If content is substantial and has secondary alignment
+      }
       
       if (!hasAlignment) {
-        console.log(`[Pipeline] ⚠️  Skipping article - doesn't align with core topics (AI software, Digital transformation, App development, Workforce automation, Emerging technology strategy): ${item.title}`);
+        console.log(`[Pipeline] ⚠️  Skipping article - doesn't align with core topics: ${item.title}`);
         continue; // Skip this article
       }
 
