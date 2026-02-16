@@ -357,51 +357,71 @@ function getDynamicHeadings(rssTitle: string, coreConcept: string, rssContent?: 
   // Extract main topic from title (first significant noun phrase)
   const mainTopic = importantWords.slice(0, 3).join(' ') || rssTitle.split(':')[0] || rssTitle.split('-')[0];
   
+  // Extract SEO keywords and specific concepts from title and content
+  const seoKeywords: string[] = [];
+  if (titleLower.includes("ai agent") || titleLower.includes("ai agents")) seoKeywords.push("AI Agents");
+  if (titleLower.includes("startup") || titleLower.includes("startups")) seoKeywords.push("Startups");
+  if (titleLower.includes("app development") || titleLower.includes("app dev")) seoKeywords.push("App Development");
+  if (titleLower.includes("artificial intelligence") || titleLower.includes("ai")) seoKeywords.push("AI");
+  if (titleLower.includes("automation")) seoKeywords.push("Automation");
+  if (titleLower.includes("technology")) seoKeywords.push("Technology");
+  
+  // Extract specific entities or platforms mentioned
+  const entities: string[] = [];
+  if (titleLower.includes("rentahuman") || titleLower.includes("rent a human")) entities.push("RentAHuman");
+  if (titleLower.includes("openai")) entities.push("OpenAI");
+  if (titleLower.includes("anthropic")) entities.push("Anthropic");
+  if (titleLower.includes("a16z") || titleLower.includes("andreessen")) entities.push("a16z");
+  
+  // Combine keywords for use in headings
+  const keywordPhrase = seoKeywords.length > 0 ? seoKeywords.join(" and ") : mainTopic;
+  const entityPhrase = entities.length > 0 ? entities.join(" and ") : null;
+  
   // Generate unique headings based on what the article is actually about
   if (titleLower.includes("tried") || titleLower.includes("i tried")) {
     // First-person experience articles
-    const subject = titleLower.includes("rentahuman") ? "RentAHuman" : 
-                    titleLower.includes("ai agent") ? "AI Agents" : mainTopic;
+    const subject = entityPhrase || (titleLower.includes("rentahuman") ? "RentAHuman" : 
+                    titleLower.includes("ai agent") ? "AI Agents" : mainTopic);
     section1 = `What Is ${subject} and How Does It Work?`;
-    section2 = `Key Features and Functionality`;
-    section3 = `Real-World Applications and User Experience`;
-    section4 = `Implications and Future Outlook`;
+    section2 = `${subject} Features: Key Capabilities and Functionality`;
+    section3 = `Real-World ${subject} Applications and User Experience`;
+    section4 = `The Future of ${subject}: Implications and Industry Impact`;
   } else if (titleLower.includes("review") || titleLower.includes("test")) {
     section1 = `What Is ${mainTopic}?`;
-    section2 = `Key Features and Capabilities`;
-    section3 = `Performance and User Experience`;
-    section4 = `Final Verdict and Recommendations`;
+    section2 = `${mainTopic} Features: Key Capabilities and Performance`;
+    section3 = `${mainTopic} User Experience and Practical Applications`;
+    section4 = `${mainTopic} Verdict: Final Recommendations and Considerations`;
   } else if (titleLower.includes("scam") || titleLower.includes("safe") || titleLower.includes("security") || titleLower.includes("risk") || titleLower.includes("protect")) {
-    section1 = `Understanding the Security Implications of ${mainTopic}`;
-    section2 = `Key Risks and Vulnerabilities to Consider`;
-    section3 = `Protective Measures and Best Practices`;
-    section4 = `Staying Safe in an Evolving Threat Landscape`;
+    section1 = `${mainTopic} Security: Understanding the Risks and Implications`;
+    section2 = `${mainTopic} Vulnerabilities: Key Threats and Attack Vectors`;
+    section3 = `${mainTopic} Protection: Best Practices and Security Measures`;
+    section4 = `Staying Safe with ${mainTopic}: Future Security Considerations`;
   } else if (titleLower.includes("company") || titleLower.includes("companies") || titleLower.includes("business")) {
-    section1 = `How Companies Are Leveraging ${mainTopic}`;
-    section2 = `Strategic Benefits and Competitive Advantages`;
-    section3 = `Implementation Approaches and Considerations`;
-    section4 = `Industry Trends and Future Developments`;
+    section1 = `How Companies Are Leveraging ${mainTopic} for Business Growth`;
+    section2 = `${mainTopic} Benefits: Strategic Advantages and ROI`;
+    section3 = `${mainTopic} Implementation: Approaches, Challenges, and Solutions`;
+    section4 = `The Future of ${mainTopic} in Business: Trends and Predictions`;
   } else if (titleLower.includes("guide") || titleLower.includes("how to") || titleLower.includes("best practices") || titleLower.includes("tips")) {
-    section1 = `Getting Started with ${mainTopic}`;
-    section2 = `Essential Concepts and Principles`;
-    section3 = `Step-by-Step Implementation Guide`;
-    section4 = `Advanced Tips and Optimization Strategies`;
+    section1 = `Getting Started with ${mainTopic}: Essential Concepts`;
+    section2 = `${mainTopic} Fundamentals: Core Principles and Best Practices`;
+    section3 = `${mainTopic} Implementation: Step-by-Step Guide and Strategies`;
+    section4 = `Advanced ${mainTopic} Techniques: Optimization and Pro Tips`;
   } else if (titleLower.includes("future") || titleLower.includes("trend") || titleLower.includes("outlook") || titleLower.includes("predict")) {
-    section1 = `Current State of ${mainTopic}`;
-    section2 = `Emerging Trends and Developments`;
-    section3 = `Strategic Implications for Organizations`;
-    section4 = `Future Predictions and Outlook`;
+    section1 = `The Current State of ${mainTopic}: Where We Are Today`;
+    section2 = `${mainTopic} Trends: Emerging Developments and Innovations`;
+    section3 = `${mainTopic} Impact: Strategic Implications for Organizations`;
+    section4 = `The Future of ${mainTopic}: Predictions and Long-Term Outlook`;
   } else if (titleLower.includes("kills") || titleLower.includes("deal") || titleLower.includes("uproar") || titleLower.includes("news")) {
     // News/event articles
-    section1 = `What Happened: The ${mainTopic} Story`;
-    section2 = `Key Details and Context`;
-    section3 = `Implications and Industry Impact`;
-    section4 = `What This Means Going Forward`;
+    section1 = `The ${mainTopic} Story: What Happened and Why It Matters`;
+    section2 = `${mainTopic} Details: Key Facts, Context, and Background`;
+    section3 = `${mainTopic} Impact: Industry Reactions and Implications`;
+    section4 = `After ${mainTopic}: What This Means for the Future`;
   } else if (titleLower.includes("gear") || titleLower.includes("equipment") || titleLower.includes("hardware")) {
-    section1 = `Understanding ${mainTopic} Technology`;
-    section2 = `Key Features and Innovations`;
-    section3 = `Applications and Use Cases`;
-    section4 = `Future Developments and Trends`;
+    section1 = `${mainTopic} Technology: How It Works and What Makes It Special`;
+    section2 = `${mainTopic} Features: Key Innovations and Technical Specifications`;
+    section3 = `${mainTopic} Applications: Real-World Use Cases and Performance`;
+    section4 = `The Future of ${mainTopic}: Upcoming Developments and Trends`;
   } else if (titleLower.includes("ai") || titleLower.includes("artificial intelligence")) {
     // Make AI headings more specific to the actual topic
     if (titleLower.includes("olympic") || titleLower.includes("sports")) {
@@ -411,38 +431,42 @@ function getDynamicHeadings(rssTitle: string, coreConcept: string, rssContent?: 
       section4 = `Future of Technology-Enhanced Athletics`;
     } else if (titleLower.includes("tried") || titleLower.includes("tested") || titleLower.includes("experience")) {
       // Experience-based AI articles
-      section1 = `What Is ${mainTopic} and How Does It Work?`;
-      section2 = `Key Features and Functionality`;
-      section3 = `Real-World Applications and Use Cases`;
-      section4 = `Implications and Future Outlook`;
+      const aiSubject = entityPhrase || keywordPhrase;
+      section1 = `What Is ${aiSubject} and How Does It Work?`;
+      section2 = `${aiSubject} Features: Key Capabilities and Functionality`;
+      section3 = `${aiSubject} Applications: Real-World Use Cases and User Experience`;
+      section4 = `The Future of ${aiSubject}: Implications and Industry Outlook`;
     } else if (titleLower.includes("agent") || titleLower.includes("agents")) {
-      section1 = `What Are ${mainTopic} and How Do They Function?`;
-      section2 = `Key Capabilities and Applications`;
-      section3 = `Implementation and Integration Strategies`;
-      section4 = `Future Evolution and Industry Impact`;
+      const agentPhrase = entityPhrase || "AI Agents";
+      section1 = `What Are ${agentPhrase} and How Do They Function?`;
+      section2 = `${agentPhrase} Capabilities: Key Features and Applications`;
+      section3 = `${agentPhrase} Implementation: Integration Strategies and Best Practices`;
+      section4 = `The Future of ${agentPhrase}: Evolution and Industry Impact`;
     } else if (titleLower.includes("app development") || titleLower.includes("app dev")) {
       section1 = `The Fundamentals of ${mainTopic}`;
-      section2 = `Key Technologies and Development Approaches`;
-      section3 = `Implementation Strategies and Best Practices`;
-      section4 = `Future Trends in AI-Powered Applications`;
+      section2 = `${mainTopic} Technologies: Development Approaches and Tools`;
+      section3 = `${mainTopic} Implementation: Strategies, Best Practices, and Case Studies`;
+      section4 = `The Future of ${mainTopic}: Trends in AI-Powered Application Development`;
     } else if (titleLower.includes("hired") || titleLower.includes("joins") || titleLower.includes("leaves")) {
       // People/company movement in AI
-      section1 = `The ${mainTopic} Development: What You Need to Know`;
-      section2 = `Key Players and Industry Context`;
-      section3 = `Strategic Implications and Market Impact`;
-      section4 = `What This Means for the AI Industry`;
+      const movementPhrase = entityPhrase || mainTopic;
+      section1 = `The ${movementPhrase} Development: What You Need to Know`;
+      section2 = `${movementPhrase} Context: Key Players, Background, and Industry Dynamics`;
+      section3 = `${movementPhrase} Impact: Strategic Implications and Market Effects`;
+      section4 = `After ${movementPhrase}: What This Means for the AI Industry`;
     } else if (titleLower.includes("overview") || titleLower.includes("overviews")) {
       section1 = `${mainTopic}: Core Concepts and How It Works`;
-      section2 = `Potential Risks and Limitations`;
-      section3 = `Best Practices for Safe Usage`;
-      section4 = `Future Improvements and Developments`;
+      section2 = `${mainTopic} Considerations: Risks, Limitations, and Challenges`;
+      section3 = `${mainTopic} Best Practices: Safe Usage and Optimization Strategies`;
+      section4 = `The Future of ${mainTopic}: Improvements and Upcoming Developments`;
     } else {
       // More specific AI headings - avoid generic "Understanding"
       const titlePhrase = rssTitle.split(/[:,-]/)[0]?.trim() || mainTopic;
+      const aiKeyword = keywordPhrase || mainTopic;
       section1 = `${titlePhrase}: Key Concepts and Applications`;
-      section2 = `Core Capabilities and Functionality`;
-      section3 = `Implementation Considerations and Best Practices`;
-      section4 = `Future Outlook and Industry Evolution`;
+      section2 = `${aiKeyword} Capabilities: Core Features and Functionality`;
+      section3 = `${aiKeyword} Implementation: Considerations, Strategies, and Best Practices`;
+      section4 = `The Future of ${aiKeyword}: Outlook and Industry Evolution`;
     }
   } else {
     // Generate more specific headings - avoid generic "Understanding"
@@ -452,19 +476,20 @@ function getDynamicHeadings(rssTitle: string, coreConcept: string, rssContent?: 
     // Check for specific patterns in title
     if (titleLower.includes("tried") || titleLower.includes("tested")) {
       section1 = `What Is ${titlePhrase} and How Does It Work?`;
-      section2 = `Key Features and Functionality`;
-      section3 = `Real-World Applications and Use Cases`;
-      section4 = `Implications and Future Outlook`;
+      section2 = `${titlePhrase} Features: Key Capabilities and Functionality`;
+      section3 = `${titlePhrase} Applications: Real-World Use Cases and Performance`;
+      section4 = `The Future of ${titlePhrase}: Implications and Industry Outlook`;
     } else if (titleLower.includes("hired") || titleLower.includes("joins") || titleLower.includes("leaves")) {
       section1 = `The ${titlePhrase} Development: What You Need to Know`;
-      section2 = `Key Players and Industry Context`;
-      section3 = `Strategic Implications and Market Impact`;
-      section4 = `What This Means for the Industry`;
+      section2 = `${titlePhrase} Context: Key Players, Background, and Industry Dynamics`;
+      section3 = `${titlePhrase} Impact: Strategic Implications and Market Effects`;
+      section4 = `After ${titlePhrase}: What This Means for the Industry`;
     } else {
+      const keyword = keywordPhrase || titlePhrase;
       section1 = `${titlePhrase}: Key Concepts and Overview`;
-      section2 = `Important Features and Benefits`;
-      section3 = `Implementation and Practical Applications`;
-      section4 = `Future Trends and Developments`;
+      section2 = `${keyword} Features: Important Capabilities and Benefits`;
+      section3 = `${keyword} Implementation: Practical Applications and Strategies`;
+      section4 = `The Future of ${keyword}: Trends and Developments`;
     }
   }
   
