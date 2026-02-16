@@ -21,13 +21,15 @@ adminRouter.use((req, res, next) => {
 });
 
 // POST /api/admin/generate - Trigger article generation
-adminRouter.post("/generate", async (_req, res) => {
+// Query params: ?fetchAll=true to fetch all RSS items (including older ones)
+adminRouter.post("/generate", async (req, res) => {
   try {
-    console.log("[ADMIN] Manual article generation triggered");
-    await generateArticles();
+    const fetchAll = req.query.fetchAll === "true" || req.body?.fetchAll === true;
+    console.log(`[ADMIN] Manual article generation triggered${fetchAll ? " (fetching all RSS items)" : ""}`);
+    await generateArticles(fetchAll);
     res.json({ 
       success: true, 
-      message: "Article generation started. Check logs for progress." 
+      message: `Article generation started${fetchAll ? " (fetching all RSS items)" : ""}. Check logs for progress.` 
     });
   } catch (error: any) {
     console.error("[ADMIN] Generation error:", error);

@@ -103,9 +103,9 @@ async function checkSemanticSimilarity(title1: string, title2: string): Promise<
  * Uses code-based generation by default (no OpenAI required).
  * Set USE_OPENAI=true to use OpenAI generation instead (requires OPENAI_API_KEY).
  */
-export async function generateArticles(): Promise<void> {
+export async function generateArticles(fetchAllOverride?: boolean): Promise<void> {
   const maxArticles = parseInt(process.env.MAX_ARTICLES_PER_RUN || "3");
-  const fetchAll = process.env.FETCH_ALL_RSS === "true"; // Set to true to fetch all items, including previously processed ones
+  const fetchAll = fetchAllOverride !== undefined ? fetchAllOverride : (process.env.FETCH_ALL_RSS === "true"); // Allow override via parameter, fallback to env var
 
   // Step 1: Fetch RSS items (new only, or all if FETCH_ALL_RSS=true)
   const newItems = fetchAll 
