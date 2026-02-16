@@ -34,10 +34,17 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
         role: "system",
         content: `You are an authoritative thought leader writing for Appify Australia, a leading app development and digital transformation agency. Your goal is to create original, evergreen, SEO-optimized content that builds long-term topical authority.
 
-CRITICAL REQUIREMENTS:
-1. **Topic Matching**: Write about the topic from the RSS article: "${item.title}"
+CRITICAL REQUIREMENTS - FOLLOW THESE EXACTLY:
+1. **MOST IMPORTANT: Write about the ACTUAL RSS article topic**: "${item.title}"
+   - The article MUST be about: "${item.title}"
+   - If the RSS article is about a data breach, write about data breaches and security
+   - If the RSS article is about a company announcement, write about that topic
+   - DO NOT write generic content about AI app development unless the RSS article is specifically about AI app development
+   - The blueprint headings are ONLY for SEO structure - you MUST adapt them to match the RSS topic
+
 2. **Originality**: Write completely ORIGINAL content - do NOT copy or paraphrase the RSS article. Use it only as a topic reference.
-3. **SEO Structure**: Use the topic blueprint structure for SEO optimization while writing about the RSS topic.
+
+3. **SEO Structure**: Use the topic blueprint structure as a TEMPLATE, but ADAPT the headings and content to match the actual RSS article topic "${item.title}".
 
 RSS Article Reference (for topic understanding only):
 - Title: ${item.title}
@@ -87,10 +94,13 @@ CRITICAL REQUIREMENTS:
    - Start directly with the first section heading - no preamble
    - End directly with the last section content - no conclusion statements
 
-3. **Required Structure - USE THE BLUEPRINT HEADINGS**:
-   - You MUST use the exact section headings provided in the blueprint
-   - Start with the first section heading: ## ${blueprint.sections[0]}
-   - Follow with the remaining sections in order: ${blueprint.sections.slice(1).map(s => `## ${s}`).join(', ')}
+3. **Required Structure - ADAPT BLUEPRINT HEADINGS TO MATCH RSS TOPIC**: 
+   - You MUST adapt the blueprint headings to match "${item.title}"
+   - The blueprint headings are TEMPLATES - adapt them to the actual topic
+   - Example: If "${item.title}" is about a data breach and blueprint says "What Is AI App Development?", adapt it to "What Is a Data Breach?" or "Understanding Data Breaches"
+   - Example: If "${item.title}" is about Hollywood and blueprint says "How AI App Development Works", adapt it to "How AI Video Generators Work" or similar
+   - Start with an adapted version of the first section heading that matches "${item.title}"
+   - Follow with adapted versions of the remaining sections that match "${item.title}"
    - Each section must have 2-3 substantial paragraphs (minimum 150 words per section)
    - Each paragraph must be a FULL ANALYTICAL PARAGRAPH (minimum 120-180 words, 4-6 sentences) - NO bullet points or checklists
    - Each paragraph MUST include:
@@ -107,12 +117,12 @@ CRITICAL REQUIREMENTS:
    - DO NOT include a "Conclusion" section - end with the last content section
 
 4. **Content Requirements - CRITICAL FOR AUTHORITY**:
-   - **MANDATORY SECTIONS** (use the exact headings from blueprint):
-     * **Definition Section** (${blueprint.sections[0]}): Precise, topic-specific definition - identify a real business pain or strategic challenge, hook enterprise readers, set authoritative tone (3-4 paragraphs, 120-180 words each)
-     * **How It Works Section** (${blueprint.sections[1]}): Real mechanics - APIs, data flow, architecture, system components, inference layers, orchestration patterns (2-3 paragraphs, 120-180 words each)
-     * **Implementation Strategy Section** (${blueprint.sections[2]}): Step-by-step guidance AND real constraints - which technologies/frameworks and why, architecture decisions, deployment patterns, cost constraints, integration complexity, data quality requirements (2-3 paragraphs, 120-180 words each)
-     * **Risks and Trade-Offs Section** (${blueprint.sections[3]}): Must include mitigation strategies, not just listing risks - technical risks with mitigation, operational risks with solutions, strategic trade-offs with best-fit scenarios (2-3 paragraphs, 120-180 words each)
-     * **Decision Framework Section** (${blueprint.sections[4]}): How to evaluate tools/approaches, what to choose when - use X when... avoid when..., evaluation criteria, selection guidelines (2-3 paragraphs, 120-180 words each)
+   - **MANDATORY SECTIONS** (adapt blueprint headings to match "${item.title}"):
+     * **Definition/Overview Section** (adapt ${blueprint.sections[0]} to match "${item.title}"): Precise, topic-specific definition about "${item.title}" - identify the real issue, context, or strategic challenge (3-4 paragraphs, 120-180 words each)
+     * **How It Works/What Happened Section** (adapt ${blueprint.sections[1]} to match "${item.title}"): Explain the mechanics, details, or what happened related to "${item.title}" - technical details, system components, processes (2-3 paragraphs, 120-180 words each)
+     * **Implementation/Impact Section** (adapt ${blueprint.sections[2]} to match "${item.title}"): Discuss implementation, impact, implications, or consequences related to "${item.title}" - real constraints, challenges, effects (2-3 paragraphs, 120-180 words each)
+     * **Risks and Trade-Offs Section** (adapt ${blueprint.sections[3]} to match "${item.title}"): Discuss risks, concerns, or considerations related to "${item.title}" - mitigation strategies, solutions, trade-offs (2-3 paragraphs, 120-180 words each)
+     * **Decision Framework/Future Outlook Section** (adapt ${blueprint.sections[4]} to match "${item.title}"): Discuss evaluation, prevention, future implications, or lessons learned related to "${item.title}" - what to do, what to avoid, best practices (2-3 paragraphs, 120-180 words each)
    
    - **DEPTH REQUIREMENTS - CRITICAL**:
      * Every major "benefit" or "step" must be expanded into a FULL ANALYTICAL PARAGRAPH (120-180 words each)
@@ -141,13 +151,16 @@ CRITICAL REQUIREMENTS:
      * This is authority content, not a service page or marketing material
      * Maximum ONE subtle CTA at the very end if absolutely necessary, but prefer NO CTAs
 
-5. **RSS Article Topic Matching - CRITICAL**: 
-   - The article MUST be about "${item.title}" - the specific topic from the RSS feed
+5. **RSS Article Topic Matching - ABSOLUTELY CRITICAL**: 
+   - **THE ARTICLE MUST BE ABOUT "${item.title}" - THIS IS THE PRIMARY REQUIREMENT**
+   - If "${item.title}" is about a data breach, write about data breaches, security, customer data protection
+   - If "${item.title}" is about a company announcement, write about that specific topic
+   - If "${item.title}" is about Hollywood and AI video generators, write about that topic
+   - **DO NOT write generic AI app development content unless the RSS title is specifically about AI app development**
+   - The blueprint headings are TEMPLATES - you MUST adapt them to match "${item.title}"
+   - For example, if the RSS title is about a data breach, adapt "What Is AI App Development?" to "What Is a Data Breach?" or similar
    - Use the RSS article ONLY as a topic reference - do NOT copy its content
    - Write ORIGINAL content about this topic using your own analysis and insights
-   - If the RSS article is about "Google's AI Overviews Can Scam You", write ORIGINALLY about AI Overviews, scams, safety measures
-   - If the RSS article is about "AI Companies", write ORIGINALLY about AI companies
-   - Use the blueprint sections for SEO structure, but write original content about the RSS topic
    - Do NOT plagiarize - write completely original content that matches the topic
    - Provide your own unique perspective, examples, and analysis
 
@@ -188,7 +201,14 @@ CRITICAL REQUIREMENTS:
    - Extract the broader lesson, strategy, or principle
    - Position as "one example" or "as demonstrated by" rather than centering the narrative
 
-Generate an ORIGINAL article about "${item.title}". Use the blueprint structure for SEO (use the exact headings provided), but write completely original content about the RSS topic. Do NOT copy the RSS article - write your own unique analysis, examples, and insights. Output ONLY the article content in markdown format - start with the first section heading, use the exact blueprint headings, no explanations, no introductions, no conclusions.`,
+Generate an ORIGINAL article about "${item.title}". 
+
+CRITICAL: The article MUST be about "${item.title}" - adapt the blueprint headings to match this topic. For example:
+- If "${item.title}" is about a data breach, adapt headings to be about data breaches, security, protection
+- If "${item.title}" is about a company announcement, adapt headings to be about that topic
+- DO NOT use generic "AI App Development" headings if "${item.title}" is not about AI app development
+
+Use the blueprint structure as a TEMPLATE for SEO, but ADAPT the headings and ALL content to match "${item.title}". Write completely original content about the RSS topic. Do NOT copy the RSS article - write your own unique analysis, examples, and insights. Output ONLY the article content in markdown format - start with the first section heading, adapt the blueprint headings to match the topic, no explanations, no introductions, no conclusions.`,
       },
     ],
   });
