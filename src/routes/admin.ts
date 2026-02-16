@@ -66,30 +66,86 @@ adminRouter.delete("/delete-recent", async (req, res) => {
     const count = parseInt(req.query.count as string) || 10; // Default: delete last 10 articles
     const hours = parseInt(req.query.hours as string); // Optional: delete articles from last X hours
     
-    let whereClause: any = {};
+    let articlesToDelete: Array<{ id: string; sourceUrl: string | null; title: string }> = [];
     
     if (hours) {
       // Delete articles created in the last X hours
       const cutoffDate = new Date();
       cutoffDate.setHours(cutoffDate.getHours() - hours);
-      whereClause.createdAt = { gte: cutoffDate };
+      articlesToDelete = await prisma.article.findMany({
+        where: { createdAt: { gte: cutoffDate } },
+        select: { id: true, sourceUrl: true, title: true },
+      });
     } else {
       // Delete last N articles by creation date
-      const recentArticles = await prisma.article.findMany({
+      articlesToDelete = await prisma.article.findMany({
         orderBy: { createdAt: "desc" },
         take: count,
-        select: { id: true },
+        select: { id: true, sourceUrl: true, title: true },
       });
-      whereClause.id = { in: recentArticles.map(a => a.id) };
     }
     
+    // Log what we're deleting (for potential restoration)
+    console.log(`[ADMIN] Deleting ${articlesToDelete.length} articles:`);
+    articlesToDelete.forEach(article => {
+      console.log(`  - ${article.title} (${article.sourceUrl || 'no source URL'})`);
+    });
+    
     const result = await prisma.article.deleteMany({
-      where: whereClause,
+      where: { id: { in: articlesToDelete.map(a => a.id) } },
     });
     
     res.json({ 
       success: true, 
-      message: `Deleted ${result.count} recent article(s)` 
+      message: `Deleted ${result.count} recent article(s)`,
+      deleted: articlesToDelete.map(a => ({ title: a.title, sourceUrl: a.sourceUrl }))
+    });
+  } catch (error: any) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// POST /api/admin/restore-from-urls - Regenerate articles from source URLs
+adminRouter.post("/restore-from-urls", async (req, res) => {
+  try {
+    const { sourceUrls }: { sourceUrls: string[] } = req.body;
+    
+    if (!sourceUrls || !Array.isArray(sourceUrls) || sourceUrls.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "sourceUrls array is required" 
+      });
+    }
+    
+    console.log(`[ADMIN] Attempting to restore ${sourceUrls.length} articles from source URLs...`);
+    
+    // Fetch RSS items and find matching ones
+    const { fetchAllRSSItems } = await import("../services/rss");
+    const allItems = await fetchAllRSSItems(200); // Fetch more to find matches
+    
+    const itemsToRegenerate = allItems.filter(item => 
+      sourceUrls.includes(item.link)
+    );
+    
+    if (itemsToRegenerate.length === 0) {
+      return res.json({ 
+        success: false, 
+        message: "No matching RSS items found for the provided source URLs" 
+      });
+    }
+    
+    // Regenerate articles for these items
+    const { generateArticles } = await import("../cron/generateArticles");
+    // We'll need to modify generateArticles to accept specific items, but for now, 
+    // we can manually process these items
+    
+    res.json({ 
+      success: true, 
+      message: `Found ${itemsToRegenerate.length} matching items. Regeneration would need manual processing.`,
+      found: itemsToRegenerate.map(item => ({ title: item.title, url: item.link }))
     });
   } catch (error: any) {
     res.status(500).json({ 
