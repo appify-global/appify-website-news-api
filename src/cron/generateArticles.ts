@@ -146,7 +146,8 @@ export async function generateArticles(): Promise<void> {
         // AI software (including AI agents, AI tools, machine learning, AI industry, OpenAI)
         (itemContent.includes("ai software") || itemContent.includes("artificial intelligence software") ||
          itemContent.includes("machine learning software") || itemContent.includes("ai platform") ||
-         itemContent.includes("ai agent") || itemContent.includes("agentic ai") || itemContent.includes("agentic artificial intelligence") ||
+         itemContent.includes("ai agent") || (itemContent.includes("ai") && itemContent.includes("agent")) || // Match "ai agent", "ai autonomous agent", "ai coding agent", etc.
+         itemContent.includes("agentic ai") || itemContent.includes("agentic artificial intelligence") ||
          itemContent.includes("ai tool") || itemContent.includes("ai system") ||
          itemContent.includes("ai industry") || itemContent.includes("ai startup") || itemContent.includes("ai companies") || itemContent.includes("ai company") ||
          itemContent.includes("openai") || (itemContent.includes("open") && itemContent.includes("ai")) ||
@@ -189,13 +190,14 @@ export async function generateArticles(): Promise<void> {
       
       // Check if title contains strong keywords (for articles where title is more descriptive than content)
       const titleLower = (item.title || "").toLowerCase();
-      const titleHasStrongKeyword = titleLower.includes("ai agent") || titleLower.includes("agentic ai") ||
+      const titleHasStrongKeyword = titleLower.includes("ai agent") || (titleLower.includes("ai") && titleLower.includes("agent")) || // Match "ai agent", "ai autonomous agent", "ai coding agent", etc.
+                                    titleLower.includes("agentic ai") ||
                                     titleLower.includes("ai software") ||
                                     titleLower.includes("ai companies") || titleLower.includes("ai company") ||
                                     titleLower.includes("openai") ||
                                     titleLower.includes("app development") ||
                                     titleLower.includes("digital transformation") ||
-                                    (titleLower.includes("ai") && (titleLower.includes("tool") || titleLower.includes("platform") || titleLower.includes("system") || titleLower.includes("deploy") || titleLower.includes("expand")));
+                                    (titleLower.includes("ai") && (titleLower.includes("tool") || titleLower.includes("platform") || titleLower.includes("system") || titleLower.includes("deploy") || titleLower.includes("expand") || titleLower.includes("coding") || titleLower.includes("development")));
       
       // Only proceed if there's STRONG alignment with core topics (in content or title)
       // Require explicit strong alignment - no secondary indicators or weak matches
