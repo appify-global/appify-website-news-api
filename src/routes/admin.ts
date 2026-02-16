@@ -357,3 +357,54 @@ adminRouter.get("/stats", async (_req, res) => {
     });
   }
 });
+
+// GET /api/admin/check-images - Check image URLs for recent articles
+adminRouter.get("/check-images", async (_req, res) => {
+  try {
+    const recentArticles = await prisma.article.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 10,
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        imageUrl: true,
+        sourceUrl: true,
+        createdAt: true,
+      },
+    });
+
+    const articlesWithSource = recentArticles.map((article) => {
+      let imageSource = "Unknown";
+      if (article.imageUrl.includes("railbucket") || article.imageUrl.includes("t3.storageapi.dev")) {
+        imageSource = "Railbucket (from article/RSS)";
+      } else if (article.imageUrl.includes("grok") || article.imageUrl.includes("xai")) {
+        imageSource = "Grok-generated";
+      } else if (article.imageUrl.includes("unsplash")) {
+        imageSource = "Placeholder (Unsplash)";
+      } else if (article.imageUrl.includes("media.wired.com") || article.imageUrl.includes("media.")) {
+        imageSource = "Direct from source (not uploaded)";
+      }
+
+      return {
+        title: article.title,
+        slug: article.slug,
+        imageUrl: article.imageUrl,
+        imageSource,
+        sourceUrl: article.sourceUrl,
+        createdAt: article.createdAt,
+      };
+    });
+
+    res.json({
+      success: true,
+      articles: articlesWithSource,
+    });
+  } catch (error: any) {
+    console.error("[Admin] Error checking images:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
