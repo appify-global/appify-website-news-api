@@ -57,29 +57,48 @@ export async function generateImage(title: string, topic: string): Promise<strin
 
   const prompt = `Create a professional, modern blog hero image representing: ${imageDescription}. Article topic: ${topic}. Style: clean, minimalist, futuristic, suitable for a technology blog. No text, no words, just visual elements.`;
 
-  const response = await getXAI().images.generate({
-    model: "grok-2-image",
-    prompt: prompt,
-    n: 1,
-    // Note: Grok-2-image doesn't support size parameter - it generates at a fixed size
-  });
-
-  const imageUrl = response.data?.[0]?.url;
-  if (!imageUrl) {
-    throw new Error("Grok returned no image");
-  }
-
-  console.log("[Grok] Image generated successfully.");
-
-  // Upload to Railbucket
   try {
-    const filename = `${slugify(title, { lower: true, strict: true })}-${Date.now()}.png`;
-    const railbucketUrl = await uploadImageToRailbucket(imageUrl, filename);
-    console.log("[Grok] Image uploaded to Railbucket.");
-    return railbucketUrl;
-  } catch (error) {
-    console.error("[Grok] Failed to upload to Railbucket, using original URL:", error);
-    // Fallback to original URL if Railbucket upload fails
-    return imageUrl;
+    const response = await getXAI().images.generate({
+      model: "grok-2-image",
+      prompt: prompt,
+      n: 1,
+      // Note: Grok-2-image doesn't support size parameter - it generates at a fixed size
+    });
+
+    const imageUrl = response.data?.[0]?.url;
+    if (!imageUrl) {
+      throw new Error("Grok returned no image URL in response");
+    }
+    
+    console.log("[Grok] Image generated successfully.");
+
+    // Upload to Railbucket
+    try {
+      const filename = `${slugify(title, { lower: true, strict: true })}-${Date.now()}.png`;
+      const railbucketUrl = await uploadImageToRailbucket(imageUrl, filename);
+      console.log("[Grok] Image uploaded to Railbucket.");
+      return railbucketUrl;
+    } catch (error) {
+      console.error("[Grok] Failed to upload to Railbucket, using original URL:", error);
+      // Fallback to original URL if Railbucket upload fails
+      return imageUrl;
+    }
+  } catch (error: any) {
+    // Better error logging for debugging
+    console.error(`[Grok] Image generation error:`, error.message);
+    if (error.status) {
+      console.error(`[Grok] HTTP Status: ${error.status}`);
+    }
+    if (error.response) {
+      console.error(`[Grok] Response:`, JSON.stringify(error.response, null, 2));
+    }
+    // Check for common issues
+    if (error.message?.includes("401") || error.message?.includes("Unauthorized")) {
+      throw new Error("Grok API key is invalid or missing. Check XAI_API_KEY environment variable.");
+    }
+    if (error.message?.includes("402") || error.message?.includes("Payment")) {
+      throw new Error("Grok API requires payment/subscription. Check your xAI account.");
+    }
+    throw error;
   }
 }
