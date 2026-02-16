@@ -11,57 +11,82 @@ function getOpenAI(): OpenAI {
 
 /**
  * Generate SEO-friendly blog title using OpenAI.
- * Mirrors the Make.com Claude title generation step.
+ * Makes only slight modifications to the original RSS title for SEO optimization.
  */
-export async function generateBlogTitle(blogContent: string): Promise<string> {
+export async function generateBlogTitle(blogContent: string, originalTitle?: string): Promise<string> {
   console.log("[OpenAI] Generating blog title...");
 
+  // If we have an original title, use it as the base and make minimal changes
+  const baseTitle = originalTitle || "";
+  
   const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o",
-    temperature: 1,
-    max_tokens: 500,
+    temperature: 0.3, // Lower temperature for more consistent, minimal changes
+    max_tokens: 100,
     messages: [
       {
         role: "system",
-        content: `When generating the blog title, return only the raw title as plain text. Do not use Markdown formatting (e.g. no '#' symbols or bold text).
+        content: `You are a title optimizer. Your job is to make MINIMAL changes to the original title for SEO purposes.
 
-Rule 1: Must be under 60 characters in total.
+CRITICAL RULES:
+1. **Keep the original title's meaning and structure** - only make slight adjustments
+2. If the original title is already good (under 60 chars, clear, has relevant keywords), keep it as-is or make only tiny tweaks
+3. If the original title is too long (>60 chars), shorten it slightly while keeping the core meaning
+4. If the original title lacks SEO keywords, add ONE keyword naturally (e.g., "AI app development", "app development") ONLY if it fits naturally
+5. Do NOT rewrite the title completely - preserve the original essence
+6. Return ONLY the optimized title, no explanations
 
-Rule 2: Include one primary keyword from the list below, if it fits naturally:
-– app development company
-– AI app development
-– mobile app developers
-– custom software development
-– app developers Australia
-
-Rule 3: **Avoid all caps, emojis, or salesy punctuation** (e.g. exclamation marks).
-
-Rule 4: Do **not start with numbers** unless it's genuinely a listicle (e.g. "5 Steps to Launch an AI App").
-
-Rule 5: Prioritise clarity over cleverness. The reader should **immediately understand** what the blog is about.
-
-Rule 6: Never use vague phrases like "The Future of…" or "How Technology is Changing…" unless the blog is genuinely about that.
-
-Rule 7: **Location mentions** (e.g. Australia, Melbourne) are optional but valuable if the blog is targeting local SEO.`,
+Return the title as plain text (no markdown, no quotes, no formatting).`,
       },
       {
         role: "user",
-        content: `Create a title for this blog:\n\n${blogContent.slice(0, 2000)}`, // First 2000 chars for context
+        content: baseTitle 
+          ? `Original title: "${baseTitle}"\n\nBlog content preview:\n${blogContent.slice(0, 1000)}\n\nMake only MINIMAL SEO adjustments to the original title. Keep the same meaning and structure.`
+          : `Create a title for this blog:\n\n${blogContent.slice(0, 2000)}`,
       },
     ],
   });
 
   const title = response.choices[0]?.message?.content?.trim();
   if (!title) {
+    // Fallback to original title if generation fails
+    if (baseTitle) {
+      console.log(`[OpenAI] Title generation failed, using original: ${baseTitle}`);
+      return baseTitle.length > 60 ? baseTitle.slice(0, 57) + "..." : baseTitle;
+    }
     throw new Error("OpenAI returned empty title");
   }
 
-  // Remove any markdown formatting that might slip through
-  const cleanTitle = title.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
+  // Remove any markdown formatting, quotes, or extra text that might slip through
+  let cleanTitle = title.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
+  // Remove surrounding quotes if present
+  cleanTitle = cleanTitle.replace(/^["']|["']$/g, "");
+  
+  // If we have an original title and the new one is very different, prefer a minimal change
+  if (baseTitle && cleanTitle.toLowerCase() !== baseTitle.toLowerCase()) {
+    const similarity = calculateTitleSimilarity(cleanTitle, baseTitle);
+    // If similarity is too low (<70%), the AI changed it too much - use original with minimal tweaks
+    if (similarity < 0.7) {
+      console.log(`[OpenAI] Generated title too different from original (${Math.round(similarity * 100)}% similarity), using original with minimal tweaks`);
+      // Just ensure length is OK
+      return baseTitle.length > 60 ? baseTitle.slice(0, 57) + "..." : baseTitle;
+    }
+  }
   
   // Ensure it's under 60 characters
   const finalTitle = cleanTitle.length > 60 ? cleanTitle.slice(0, 57) + "..." : cleanTitle;
 
-  console.log(`[OpenAI] Generated title: ${finalTitle}`);
+  console.log(`[OpenAI] Generated title: ${finalTitle}${baseTitle ? ` (from original: ${baseTitle})` : ""}`);
   return finalTitle;
+}
+
+// Helper function to calculate title similarity
+function calculateTitleSimilarity(title1: string, title2: string): number {
+  const words1 = title1.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  const words2 = title2.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+  
+  if (words1.length === 0 || words2.length === 0) return 0;
+  
+  const commonWords = words1.filter(w => words2.includes(w));
+  return commonWords.length / Math.max(words1.length, words2.length);
 }

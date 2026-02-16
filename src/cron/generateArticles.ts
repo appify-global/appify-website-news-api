@@ -226,10 +226,10 @@ export async function generateArticles(): Promise<void> {
       // Step 4: Convert to clean HTML (OpenAI or Code)
       const htmlContent = await convertToHTML(seoResult.optimizedContent);
 
-      // Step 5: Generate title (OpenAI or Code)
+      // Step 5: Generate title (OpenAI or Code) - pass original RSS title for minimal modifications
       const blogTitle = USE_CODE_GENERATION
         ? await generateBlogTitle(htmlContent, item.title)
-        : await generateBlogTitle(htmlContent);
+        : await generateBlogTitle(htmlContent, item.title); // Pass original title for minimal SEO tweaks
 
       // Step 6: Generate meta description (OpenAI or Code)
       const metaDescription = await generateMetaDescription(htmlContent);
