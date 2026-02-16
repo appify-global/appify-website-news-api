@@ -313,6 +313,26 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
       // Code-based keyword matching (used if AI filter disabled, failed, or as fallback)
       if (!hasAlignment) {
         const itemContent = (item.contentSnippet || item.content || item.title || "").toLowerCase();
+        const titleLower = (item.title || "").toLowerCase();
+        
+        // FIRST: Reject articles that are clearly NOT about our topics
+        // Gaming hardware, consumer electronics, etc. that don't match our topics
+        const isGamingHardware = titleLower.includes("gaming mouse") || titleLower.includes("gaming keyboard") || 
+                                 titleLower.includes("gaming headset") || titleLower.includes("gaming gear") ||
+                                 titleLower.includes("gaming peripheral") || titleLower.includes("gaming equipment");
+        const isConsumerElectronics = (titleLower.includes("mouse") || titleLower.includes("keyboard") || 
+                                       titleLower.includes("headset") || titleLower.includes("monitor") ||
+                                       titleLower.includes("hardware") || titleLower.includes("peripheral")) &&
+                                      !titleLower.includes("software") && !titleLower.includes("app") &&
+                                      !titleLower.includes("development") && !titleLower.includes("platform");
+        
+        // If it's clearly gaming hardware or consumer electronics, reject unless it has strong tech relevance
+        if ((isGamingHardware || isConsumerElectronics) && 
+            !itemContent.includes("software") && !itemContent.includes("app development") &&
+            !itemContent.includes("ai") && !itemContent.includes("digital transformation")) {
+          console.log(`[Pipeline] ⚠️  Skipping article - gaming hardware/consumer electronics not relevant: ${item.title}`);
+          continue;
+        }
         
         // Strong alignment indicators for our core topics
         const hasStrongAlignment = 
