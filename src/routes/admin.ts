@@ -366,7 +366,7 @@ adminRouter.delete("/article/:slug", async (req, res) => {
     // Get article to find image URL
     const article = await prisma.article.findUnique({
       where: { slug },
-      select: { id: true, title: true, imageUrl: true },
+      select: { id: true, title: true, slug: true, imageUrl: true },
     });
 
     if (!article) {
