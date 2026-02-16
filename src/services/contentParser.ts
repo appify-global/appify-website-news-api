@@ -200,8 +200,20 @@ export function generateExcerpt(blocks: ContentBlock[], metaDescription?: string
       if (t.match(/^[A-Z][^.!?]{0,50}:\s*A Strategic Guide/i)) return false; // H1 patterns
       if (t.match(/^[A-Z][^.!?]{0,50}:\s*[A-Z]/)) return false; // Title-like patterns
       
-      // Filter out generic definitions (these shouldn't be in excerpts)
       const lower = t.toLowerCase();
+      
+      // Filter out promotional/CTA content
+      if (lower.match(/\b(explore our|visit our|check out our|learn more about our|for more insights|discover how|contact us|get started|sign up|subscribe)\b/)) {
+        return false; // Skip promotional content
+      }
+      if (lower.match(/\b(automation services|our services|our section|our page|our dedicated)\b/)) {
+        return false; // Skip service mentions
+      }
+      if (lower.match(/\b(transform your|enhance your|improve your|optimize your)\s+(digital|business|workflow|process)\b/)) {
+        return false; // Skip generic promotional phrases
+      }
+      
+      // Filter out generic definitions (these shouldn't be in excerpts)
       if (lower.match(/^[^.]*\b(refers to|is the process|is a|is an|is defined as|means|involves creating|involves developing)\b/)) {
         return false; // Skip generic definitions
       }
@@ -217,21 +229,44 @@ export function generateExcerpt(blocks: ContentBlock[], metaDescription?: string
     });
   
   // Prioritize: skip first paragraph if it's a definition, get actual content
-  // Look for paragraphs that contain actual news/information (not definitions)
-  const contentParagraphs = paragraphs.filter((p, index) => {
-    const lower = p.toLowerCase();
-    // Skip if it's clearly a definition in the first few paragraphs
-    if (index < 2 && lower.match(/\b(refers to|is the process|is defined as|means|involves)\b/)) {
-      return false;
-    }
-    // Prefer paragraphs with actual information (dates, names, events, actions)
-    const hasActualInfo = lower.match(/\b(reached|announced|reported|said|according|recently|latest|new|launched|introduced)\b/) ||
-                         lower.match(/\b(2024|2025|\d{4})\b/) || // Years
-                         lower.match(/[A-Z][a-z]+ [A-Z][a-z]+/); // Proper nouns (names)
-    return true; // Include all non-definition paragraphs
-  });
+  // Look for paragraphs that contain actual news/information (not definitions or promotional content)
+  const contentParagraphs = paragraphs
+    .filter((p, index) => {
+      const lower = p.toLowerCase();
+      
+      // Skip promotional/CTA content
+      if (lower.match(/\b(explore our|visit our|check out our|learn more about our|for more insights|discover how|contact us|automation services|our services)\b/)) {
+        return false;
+      }
+      
+      // Skip if it's clearly a definition in the first few paragraphs
+      if (index < 2 && lower.match(/\b(refers to|is the process|is defined as|means|involves)\b/)) {
+        return false;
+      }
+      
+      return true;
+    })
+    .sort((a, b) => {
+      // Prioritize paragraphs with actual news/information
+      const aLower = a.toLowerCase();
+      const bLower = b.toLowerCase();
+      
+      const aScore = 
+        (aLower.match(/\b(reached|announced|reported|said|according|recently|latest|new|launched|introduced|reveals|shows|indicates|suggests|highlights)\b/)?.length || 0) +
+        (aLower.match(/\b(2024|2025|2026|\d{4})\b/)?.length || 0) * 2 + // Years are strong indicators
+        (aLower.match(/[A-Z][a-z]+ [A-Z][a-z]+/)?.length || 0) + // Proper nouns
+        (aLower.match(/\b(hollywood|company|companies|startup|startups|industry|market|users|people)\b/)?.length || 0);
+      
+      const bScore = 
+        (bLower.match(/\b(reached|announced|reported|said|according|recently|latest|new|launched|introduced|reveals|shows|indicates|suggests|highlights)\b/)?.length || 0) +
+        (bLower.match(/\b(2024|2025|2026|\d{4})\b/)?.length || 0) * 2 +
+        (bLower.match(/[A-Z][a-z]+ [A-Z][a-z]+/)?.length || 0) +
+        (bLower.match(/\b(hollywood|company|companies|startup|startups|industry|market|users|people)\b/)?.length || 0);
+      
+      return bScore - aScore; // Higher score first
+    });
   
-  // Take first 2-3 paragraphs that are actual content (not definitions)
+  // Take first 2-3 paragraphs that are actual content (not definitions or promotional)
   const selectedParagraphs = contentParagraphs.slice(0, 3);
     
   if (selectedParagraphs.length === 0) {
