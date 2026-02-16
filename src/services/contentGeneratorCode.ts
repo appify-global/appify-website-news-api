@@ -279,8 +279,104 @@ function ensureParagraphLength(paragraph: string): string {
 }
 
 /**
+ * Generate topic-specific content based on RSS article title
+ */
+function generateTopicSpecificContent(rssTitle: string, rssContent: string, coreConcept: string): {
+  definition: string;
+  section1: string[];
+  section2: string[];
+  section3: string[];
+  section4: string[];
+} {
+  const titleLower = rssTitle.toLowerCase();
+  const contentLower = (rssContent || "").toLowerCase();
+  const combined = titleLower + " " + contentLower;
+  
+  // Generate topic-specific definition based on RSS title
+  let definition = "";
+  if (titleLower.includes("scam") || titleLower.includes("safe") || titleLower.includes("security") || titleLower.includes("risk")) {
+    definition = `Understanding security risks and safety measures is crucial when adopting new technologies. ${rssTitle} highlights important considerations that organizations must address to protect their operations and users. This topic requires careful evaluation of potential vulnerabilities and implementation of appropriate safeguards.`;
+  } else if (titleLower.includes("company") || titleLower.includes("companies") || titleLower.includes("business")) {
+    definition = `The landscape of ${coreConcept} continues to evolve as companies explore new applications and strategies. ${rssTitle} reflects current trends and developments in how organizations are leveraging these technologies. Understanding these patterns helps businesses make informed decisions about adoption and implementation.`;
+  } else if (titleLower.includes("guide") || titleLower.includes("how to") || titleLower.includes("best practices")) {
+    definition = `Effective implementation of ${coreConcept} requires understanding key principles and best practices. ${rssTitle} provides valuable insights into how organizations can successfully adopt and integrate these technologies. This guide covers essential considerations for achieving optimal results.`;
+  } else if (titleLower.includes("future") || titleLower.includes("trend") || titleLower.includes("outlook")) {
+    definition = `The future of ${coreConcept} is shaped by emerging trends and technological advances. ${rssTitle} explores how these developments will impact organizations and industries. Understanding these trends helps businesses prepare for upcoming changes and opportunities.`;
+  } else {
+    definition = `${rssTitle} represents an important development in ${coreConcept}. This topic addresses key considerations that organizations should understand when evaluating and implementing related technologies. Understanding these aspects is essential for making informed strategic decisions.`;
+  }
+  
+  // Generate topic-specific sections based on RSS content
+  const section1: string[] = [];
+  const section2: string[] = [];
+  const section3: string[] = [];
+  const section4: string[] = [];
+  
+  // Extract key points from RSS content and expand them
+  const keyPoints = extractKeyPoints(rssContent, rssTitle);
+  
+  // Section 1: How it works / Understanding the topic
+  if (keyPoints.length > 0) {
+    section1.push(expandPoint(keyPoints[0] || `Understanding ${coreConcept}`, rssTitle, coreConcept));
+    if (keyPoints.length > 1) {
+      section1.push(expandPoint(keyPoints[1], rssTitle, coreConcept));
+    }
+  } else {
+    section1.push(`Understanding ${coreConcept} requires examining how these technologies function in real-world environments. Organizations need to consider technical architecture, integration requirements, and operational implications when evaluating solutions. This understanding forms the foundation for successful implementation and adoption.`);
+  }
+  
+  // Section 2: Benefits / Applications
+  section2.push(`The benefits of ${coreConcept} extend across multiple dimensions of organizational operations. Companies can achieve improved efficiency, enhanced decision-making capabilities, and better resource utilization through strategic implementation. These advantages become more significant as organizations scale their adoption and integrate these technologies into core business processes.`);
+  
+  // Section 3: Implementation / Strategy
+  section3.push(`Implementing ${coreConcept} successfully requires a structured approach that addresses technical, organizational, and strategic considerations. Organizations should begin by clearly defining objectives, assessing current capabilities, and identifying integration points with existing systems. This planning phase is critical for ensuring smooth deployment and maximizing value from the investment.`);
+  
+  // Section 4: Considerations / Future
+  section4.push(`As ${coreConcept} continues to evolve, organizations must stay informed about emerging trends and best practices. The landscape changes rapidly, with new capabilities and applications emerging regularly. Companies that maintain awareness of these developments position themselves to adapt quickly and capitalize on new opportunities as they arise.`);
+  
+  return { definition, section1, section2, section3, section4 };
+}
+
+/**
+ * Extract key points from RSS content
+ */
+function extractKeyPoints(content: string, title: string): string[] {
+  const points: string[] = [];
+  const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 20);
+  
+  // Extract sentences that seem important (contain key terms)
+  const titleWords = title.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  
+  sentences.forEach(sentence => {
+    const lower = sentence.toLowerCase();
+    const hasTitleWords = titleWords.some(word => lower.includes(word));
+    if (hasTitleWords && sentence.trim().length > 50) {
+      points.push(sentence.trim());
+    }
+  });
+  
+  return points.slice(0, 5); // Return up to 5 key points
+}
+
+/**
+ * Expand a key point into a full paragraph
+ */
+function expandPoint(point: string, rssTitle: string, coreConcept: string): string {
+  // Remove quotes and attribution
+  let expanded = point.replace(/^["']|["']$/g, "").trim();
+  
+  // If it's too short, expand it
+  const wordCount = expanded.split(/\s+/).length;
+  if (wordCount < 80) {
+    expanded += ` This aspect of ${coreConcept} requires careful consideration of technical requirements, implementation challenges, and potential benefits. Organizations evaluating these solutions should assess how they align with strategic objectives and operational needs. Understanding these factors helps ensure successful adoption and maximizes the value derived from implementation.`;
+  }
+  
+  return expanded;
+}
+
+/**
  * Generate blog content from RSS item using code-based approach.
- * Creates structured industry summary with intentional SEO structure.
+ * Creates structured, topic-specific content that matches the RSS article.
  */
 export async function generateBlogContent(item: RSSItem): Promise<string> {
   console.log(`[Code] Generating blog for: ${item.title}`);
@@ -293,55 +389,62 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     const coreConcept = extractCoreConcept(item.title, sourceContent);
     const headings = getDynamicHeadings(coreConcept);
     
-    // Clean content (remove quotes, fix notation, but keep structure)
-    let cleaned = cleanContent(sourceContent);
+    // Generate topic-specific content based on RSS article
+    const topicContent = generateTopicSpecificContent(item.title, sourceContent, coreConcept);
     
-    // Split into paragraphs and ensure minimum length
+    // Clean and process source content
+    let cleaned = cleanContent(sourceContent);
     const paragraphs = cleaned.split(/\n\n+/)
       .map(p => p.trim())
       .filter(p => p.length > 50)
       .map(p => ensureParagraphLength(p))
       .filter(p => {
-        // Remove incomplete sentences
         if (/^As\s+[^.!?]{0,60}\.\s*$/.test(p)) return false;
         if (/^([A-Z][a-z]+|she|he|they|it)\s*\.\s*$/.test(p)) return false;
         return true;
       });
     
-    // Classify paragraphs by meaning (not by index)
+    // Classify paragraphs by meaning
     const grouped = groupParagraphs(paragraphs);
     
-    // Generate proper definition with contextual sentence (using title)
-    const definition = generateDefinition(coreConcept, item.title);
-    
-    // Prepare fallback content for thin sections
-    const allGeneral = [...grouped.general, ...grouped.benefits.slice(3), ...grouped.implementation.slice(3), ...grouped.future.slice(2)];
-    
-    // Create stable hash for filler selection (use title + URL)
+    // Merge topic-specific content with extracted content
     const titleOrUrl = item.title + item.link;
     
-    // Structure sections with minimum word count and merge if thin
-    let section1Content = grouped.general.slice(0, 2).length > 0 ? grouped.general.slice(0, 2) : [];
-    section1Content = mergeIfThin(section1Content, allGeneral);
-    section1Content = ensureMinimumWords(section1Content, 150, coreConcept, titleOrUrl);
+    // Section 1: Combine topic-specific with extracted content
+    let section1Content = [...topicContent.section1];
+    if (grouped.general.length > 0) {
+      section1Content.push(...grouped.general.slice(0, 2));
+    }
+    section1Content = ensureMinimumWords(section1Content, 200, coreConcept, titleOrUrl);
     
-    let section2Content = grouped.benefits.slice(0, 3);
-    section2Content = mergeIfThin(section2Content, allGeneral);
-    section2Content = ensureMinimumWords(section2Content, 150, coreConcept, titleOrUrl);
+    // Section 2: Benefits
+    let section2Content = [...topicContent.section2];
+    if (grouped.benefits.length > 0) {
+      section2Content.push(...grouped.benefits.slice(0, 2));
+    }
+    section2Content = ensureMinimumWords(section2Content, 200, coreConcept, titleOrUrl);
     
-    let section3Content = grouped.implementation.slice(0, 3);
-    section3Content = mergeIfThin(section3Content, allGeneral);
-    section3Content = ensureMinimumWords(section3Content, 150, coreConcept, titleOrUrl);
+    // Section 3: Implementation
+    let section3Content = [...topicContent.section3];
+    if (grouped.implementation.length > 0) {
+      section3Content.push(...grouped.implementation.slice(0, 2));
+    }
+    section3Content = ensureMinimumWords(section3Content, 200, coreConcept, titleOrUrl);
     
-    let section4Content = grouped.future.length > 0 ? grouped.future.slice(0, 2) : grouped.general.slice(2, 4);
-    section4Content = mergeIfThin(section4Content, allGeneral);
-    section4Content = ensureMinimumWords(section4Content, 150, coreConcept, titleOrUrl);
+    // Section 4: Future/Considerations
+    let section4Content = [...topicContent.section4];
+    if (grouped.future.length > 0) {
+      section4Content.push(...grouped.future.slice(0, 2));
+    } else if (grouped.general.length > 2) {
+      section4Content.push(...grouped.general.slice(2, 4));
+    }
+    section4Content = ensureMinimumWords(section4Content, 200, coreConcept, titleOrUrl);
     
-    // Build blog structure - definition goes directly under H1
+    // Build blog structure with topic-specific content
     const blogSections: string[] = [
       `# ${headings.h1}`,
       "",
-      definition,
+      topicContent.definition,
       "",
       `## ${headings.section1}`,
       ...section1Content.filter(p => p.length > 0),
@@ -359,16 +462,17 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     const blogContent = blogSections.join("\n\n");
     const wordCount = blogContent.split(/\s+/).length;
 
-    console.log(`[Code] Generated ${wordCount} words from source content.`);
+    console.log(`[Code] Generated ${wordCount} words (topic-specific content matching RSS article).`);
     return blogContent;
   } catch (error: any) {
     console.warn(`[Code] Failed to fetch article content, using RSS snippet: ${error.message}`);
     
+    // Fallback: Generate topic-specific content from RSS snippet
     const fallbackContent = item.contentSnippet || item.content || item.title;
     const coreConcept = extractCoreConcept(item.title, fallbackContent);
     const headings = getDynamicHeadings(coreConcept);
-    const definition = generateDefinition(coreConcept, item.title);
+    const topicContent = generateTopicSpecificContent(item.title, fallbackContent, coreConcept);
     
-    return `# ${headings.h1}\n\n${definition}\n\n## ${headings.section1}\n\nThis technology offers significant benefits for organizations seeking to improve efficiency and automate processes. Understanding these advantages is essential for businesses navigating digital transformation.\n\n## ${headings.section2}\n\nOrganizations should evaluate how these technologies can be integrated into their existing workflows and processes. Implementation requires strategic planning and careful consideration of governance and scalability.\n\n## ${headings.section3}\n\nThe future of technology continues to evolve, presenting new opportunities for businesses willing to adapt and innovate. Staying informed about emerging trends is crucial for long-term success.`;
+    return `# ${headings.h1}\n\n${topicContent.definition}\n\n## ${headings.section1}\n\n${topicContent.section1.join("\n\n")}\n\n## ${headings.section2}\n\n${topicContent.section2.join("\n\n")}\n\n## ${headings.section3}\n\n${topicContent.section3.join("\n\n")}\n\n## ${headings.section4}\n\n${topicContent.section4.join("\n\n")}`;
   }
 }
