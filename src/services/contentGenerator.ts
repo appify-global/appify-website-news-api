@@ -32,36 +32,43 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     messages: [
       {
         role: "system",
-        content: `You are an authoritative thought leader writing for Appify Australia, a leading app development and digital transformation agency. Your goal is to create evergreen, SEO-optimized content that builds long-term topical authority.
+        content: `You are an authoritative thought leader writing for Appify Australia, a leading app development and digital transformation agency. Your goal is to create original, evergreen, SEO-optimized content that builds long-term topical authority.
 
-CRITICAL: You MUST write about the specific topic from the RSS article. The article title is: "${item.title}"
+CRITICAL REQUIREMENTS:
+1. **Topic Matching**: Write about the topic from the RSS article: "${item.title}"
+2. **Originality**: Write completely ORIGINAL content - do NOT copy or paraphrase the RSS article. Use it only as a topic reference.
+3. **SEO Structure**: Use the topic blueprint structure for SEO optimization while writing about the RSS topic.
 
-Analyze the RSS article content and write a comprehensive article that directly addresses the topic in the title. The content MUST be relevant to the RSS article's topic, not a generic guide.
-
-RSS Article Details:
+RSS Article Reference (for topic understanding only):
 - Title: ${item.title}
-- Content: ${(item.contentSnippet || item.content || "").slice(0, 3000)}
-- Link: ${item.link}
+- Topic Summary: ${(item.contentSnippet || item.content || item.title || "").slice(0, 1000)}
 
-Use the topic blueprint as a STRUCTURE GUIDE only, but adapt the content to match the RSS article's specific topic. The article must be about the topic in the RSS title, not a generic guide.
+Use the RSS article ONLY to understand the topic. Write completely original content about that topic using your own analysis, examples, and insights.
 
-TOPIC BLUEPRINT (use as structure guide, adapt content to RSS topic):
-- H1 Title: Write about "${item.title}" - adapt the blueprint structure to this specific topic
-- Required Sections (adapt these headings to match the RSS article topic):
+TOPIC BLUEPRINT (use for SEO structure, write original content about RSS topic):
+- Topic: "${item.title}"
+- Required Sections (use these exact headings for SEO):
 ${blueprint.sections.map((s, i) => `  ${i + 1}. ## ${s}`).join('\n')}
 
 Topic Description: ${blueprint.description}
 
-IMPORTANT: The article content must directly relate to "${item.title}". Do not write generic content.`,
+IMPORTANT: 
+- Write ORIGINAL content about the RSS topic - do not copy or paraphrase
+- Use the blueprint headings for SEO structure
+- Match the topic but be completely original in your writing`,
       },
       {
         role: "user",
-        content: `Write a comprehensive article about: "${item.title}"
+        content: `Write a comprehensive, ORIGINAL article about: "${item.title}"
 
-RSS Article Content:
-${(item.contentSnippet || item.content || item.title || "").slice(0, 3000)}
+RSS Article Topic Reference (use only to understand the topic, do NOT copy):
+${(item.contentSnippet || item.content || item.title || "").slice(0, 1500)}
 
-CRITICAL: The article MUST be about "${item.title}". Use the blueprint structure as a guide, but adapt ALL content to match this specific topic. Do NOT write generic content.
+CRITICAL: 
+- Write about the topic "${item.title}" but use COMPLETELY ORIGINAL content
+- Do NOT copy, paraphrase, or closely follow the RSS article content
+- Write your own unique analysis, insights, and examples about this topic
+- Use the blueprint structure for SEO, but write original content
 
 CRITICAL REQUIREMENTS:
 
@@ -136,13 +143,13 @@ CRITICAL REQUIREMENTS:
 
 5. **RSS Article Topic Matching - CRITICAL**: 
    - The article MUST be about "${item.title}" - the specific topic from the RSS feed
-   - Use the RSS article content provided above to understand the topic
-   - Write about the specific topic in the RSS title, NOT a generic guide
-   - If the RSS article is about "Google's AI Overviews Can Scam You", write about that specific topic (AI Overviews, scams, safety)
-   - If the RSS article is about "AI Companies", write about AI companies specifically
-   - Adapt the blueprint sections to match the RSS article topic (e.g., if RSS is about scams, write about scams and safety, not generic AI development)
-   - Do NOT write generic content that ignores the RSS article topic
-   - The content must directly relate to and expand on the RSS article's topic
+   - Use the RSS article ONLY as a topic reference - do NOT copy its content
+   - Write ORIGINAL content about this topic using your own analysis and insights
+   - If the RSS article is about "Google's AI Overviews Can Scam You", write ORIGINALLY about AI Overviews, scams, safety measures
+   - If the RSS article is about "AI Companies", write ORIGINALLY about AI companies
+   - Use the blueprint sections for SEO structure, but write original content about the RSS topic
+   - Do NOT plagiarize - write completely original content that matches the topic
+   - Provide your own unique perspective, examples, and analysis
 
 6. **Primary Keyword**: Identify and naturally integrate ONE clear primary keyword throughout:
    - In the H1 title (already provided in blueprint)
