@@ -185,13 +185,47 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
   const fetchAll = fetchAllOverride !== undefined ? fetchAllOverride : (process.env.FETCH_ALL_RSS === "true"); // Allow override via parameter, fallback to env var
 
   // Step 1: Fetch RSS items (new only, or all if FETCH_ALL_RSS=true)
-  const newItems = fetchAll 
+  let newItems = fetchAll 
     ? await fetchAllRSSItems(50) // Fetch up to 50 items from all feeds
     : await fetchNewRSSItems();
 
   if (newItems.length === 0) {
     console.log("[Pipeline] No new articles to process.");
     return;
+  }
+
+  // Prioritize Australia-related articles - sort them to the front
+  newItems = newItems.sort((a, b) => {
+    const aTitle = (a.title || "").toLowerCase();
+    const aContent = ((a.contentSnippet || a.content || "")).toLowerCase();
+    const bTitle = (b.title || "").toLowerCase();
+    const bContent = ((b.contentSnippet || b.content || "")).toLowerCase();
+    
+    const aHasAustralia = aTitle.includes("australia") || aTitle.includes("australian") || 
+                          aContent.includes("australia") || aContent.includes("australian") ||
+                          aTitle.includes("sydney") || aTitle.includes("melbourne") || 
+                          aTitle.includes("brisbane") || aTitle.includes("perth") ||
+                          aTitle.includes("adelaide") || aTitle.includes("canberra");
+    
+    const bHasAustralia = bTitle.includes("australia") || bTitle.includes("australian") || 
+                          bContent.includes("australia") || bContent.includes("australian") ||
+                          bTitle.includes("sydney") || bTitle.includes("melbourne") || 
+                          bTitle.includes("brisbane") || bTitle.includes("perth") ||
+                          bTitle.includes("adelaide") || bTitle.includes("canberra");
+    
+    // Australia articles come first
+    if (aHasAustralia && !bHasAustralia) return -1;
+    if (!aHasAustralia && bHasAustralia) return 1;
+    return 0; // Keep original order if both or neither have Australia
+  });
+  
+  if (newItems.some(item => {
+    const title = (item.title || "").toLowerCase();
+    const content = ((item.contentSnippet || item.content || "")).toLowerCase();
+    return title.includes("australia") || title.includes("australian") || 
+           content.includes("australia") || content.includes("australian");
+  })) {
+    console.log(`[Pipeline] ✅ Prioritized Australia-related articles`);
   }
 
   // Process articles until we generate at least 1 article (or up to maxArticles)
