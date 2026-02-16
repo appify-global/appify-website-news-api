@@ -36,9 +36,40 @@ function getRSSFeedUrls(): string[] {
   }
 
   // Default feeds if no environment variables are set
+  // Comprehensive list of tech, AI, startup, and design feeds
   if (feeds.length === 0) {
+    // Core Tech Feeds
     feeds.push("https://www.wired.com/feed/rss");
     feeds.push("https://techcrunch.com/feed/");
+    feeds.push("https://www.theverge.com/rss/index.xml");
+    feeds.push("https://arstechnica.com/feed/");
+    
+    // AI & Tech Focused
+    feeds.push("https://venturebeat.com/feed/");
+    feeds.push("https://www.technologyreview.com/feed/");
+    feeds.push("https://www.artificialintelligence-news.com/feed/");
+    feeds.push("https://syncedreview.com/feed/");
+    feeds.push("https://towardsdatascience.com/feed");
+    
+    // Startups & Business
+    feeds.push("https://www.protocol.com/feed");
+    feeds.push("https://www.fastcompany.com/feed");
+    feeds.push("https://www.producthunt.com/feed");
+    feeds.push("https://blog.ycombinator.com/feed/");
+    feeds.push("https://firstround.com/review/feed/");
+    
+    // Web3 & Blockchain
+    feeds.push("https://www.coindesk.com/arc/outboundfeeds/rss/");
+    feeds.push("https://decrypt.co/feed");
+    feeds.push("https://www.theblock.co/rss.xml");
+    
+    // Design & UX
+    feeds.push("https://www.smashingmagazine.com/feed/");
+    feeds.push("https://alistapart.com/main/feed/");
+    
+    // Work & Culture
+    feeds.push("https://feeds.hbr.org/harvardbusiness");
+    feeds.push("https://qz.com/feed/");
   }
 
   return feeds;

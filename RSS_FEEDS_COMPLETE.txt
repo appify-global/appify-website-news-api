@@ -1,0 +1,8 @@
+# Complete RSS Feed Configuration for Railway
+# Copy this entire value to RSS_FEED_URL environment variable in Railway
+
+https://rss.app/feeds/_Ftsh8MCjwTLhxIZJ.xml,https://www.wired.com/feed/rss,https://techcrunch.com/feed/,https://www.theverge.com/rss/index.xml,https://arstechnica.com/feed/,https://venturebeat.com/feed/,https://www.technologyreview.com/feed/,https://www.protocol.com/feed,https://www.fastcompany.com/feed,https://www.producthunt.com/feed,https://blog.ycombinator.com/feed/,https://firstround.com/review/feed/,https://www.artificialintelligence-news.com/feed/,https://syncedreview.com/feed/,https://towardsdatascience.com/feed,https://www.coindesk.com/arc/outboundfeeds/rss/,https://decrypt.co/feed,https://www.theblock.co/rss.xml,https://www.smashingmagazine.com/feed/,https://alistapart.com/main/feed/,https://feeds.hbr.org/harvardbusiness,https://qz.com/feed/
+
+# Total: 22 RSS feeds
+# - 1 rss.app aggregated feed
+# - 21 individual site feeds
