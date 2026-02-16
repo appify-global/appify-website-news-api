@@ -17,7 +17,7 @@ export async function convertToHTML(seoContent: string): Promise<string> {
   console.log("[OpenAI] Converting content to clean HTML...");
 
   const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     temperature: 1,
     max_tokens: 10000,
     messages: [

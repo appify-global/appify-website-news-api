@@ -26,7 +26,7 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
   console.log(`[OpenAI] Using blueprint: ${blueprint.h1}`);
 
   const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     temperature: 0.8, // Slightly lower for more focused, authoritative content
     max_tokens: 4000, // For 1,200-1,600 word articles
     messages: [

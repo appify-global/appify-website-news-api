@@ -18,13 +18,13 @@ interface SEOResult {
 }
 
 /**
- * Optimize blog content for SEO using OpenAI GPT-4o.
+ * Optimize blog content for SEO using OpenAI GPT-4o-mini.
  */
 export async function optimizeForSEO(blogContent: string): Promise<SEOResult> {
   console.log("[OpenAI] Optimizing content for SEO...");
 
   const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     temperature: 0.8,
     max_tokens: 4000, // For 1,200-1,600 word articles
     messages: [

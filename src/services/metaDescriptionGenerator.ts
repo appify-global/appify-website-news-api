@@ -17,7 +17,7 @@ export async function generateMetaDescription(blogContent: string): Promise<stri
   console.log("[OpenAI] Generating meta description...");
 
   const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     temperature: 1,
     max_tokens: 500,
     messages: [

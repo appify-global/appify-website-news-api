@@ -20,7 +20,7 @@ export async function generateBlogTitle(blogContent: string, originalTitle?: str
   const baseTitle = originalTitle || "";
   
   const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4o-mini",
     temperature: 0.3, // Lower temperature for more consistent, minimal changes
     max_tokens: 100,
     messages: [
