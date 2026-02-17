@@ -500,13 +500,38 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
       const rawBlog = await generateBlogContent(item);
       console.log(`[Pipeline] Content generated, length: ${rawBlog.length} characters`);
 
-      // Step 3: SEO optimize (OpenAI or Code)
-      const seoResult = USE_CODE_GENERATION 
-        ? await optimizeForSEO(rawBlog, item.categories, item.title)
-        : await optimizeForSEO(rawBlog);
+      // Step 3: Extract topics from RSS item (don't rewrite content)
+      // Simple topic detection from title/content - no content rewriting
+      let topics = "AI"; // Default fallback
+      const titleLower = (item.title || "").toLowerCase();
+      const contentLower = ((item.contentSnippet || item.content || "")).toLowerCase();
+      
+      const topicMatches: string[] = [];
+      if (titleLower.includes("ai") || titleLower.includes("artificial intelligence") || contentLower.includes("ai")) {
+        topicMatches.push("AI");
+      }
+      if (titleLower.includes("automation") || contentLower.includes("automation")) {
+        topicMatches.push("Automation");
+      }
+      if (titleLower.includes("web") || contentLower.includes("web")) {
+        topicMatches.push("Web");
+      }
+      if (titleLower.includes("startup") || contentLower.includes("startup") || titleLower.includes("venture capital")) {
+        topicMatches.push("Startups");
+      }
+      if (titleLower.includes("web3") || titleLower.includes("blockchain") || titleLower.includes("crypto")) {
+        topicMatches.push("Web3");
+      }
+      if (titleLower.includes("design") || contentLower.includes("design")) {
+        topicMatches.push("Design");
+      }
+      
+      topics = topicMatches.length > 0 ? topicMatches.join(", ") : "AI";
+      console.log(`[Pipeline] Extracted topics: ${topics}`);
 
-      // Step 4: Convert to clean HTML (OpenAI or Code)
-      const htmlContent = await convertToHTML(seoResult.optimizedContent);
+      // Step 4: Use content directly (already in HTML format with outline headings)
+      // Only do minimal HTML cleanup, don't rewrite
+      const htmlContent = rawBlog; // Content already has proper HTML headings from outline
 
       // Step 5: Generate title (OpenAI or Code) - pass original RSS title for minimal modifications
       const blogTitle = USE_CODE_GENERATION
@@ -604,7 +629,7 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
       // Step 1: Try Grok generation first
       try {
         console.log(`[Pipeline] 🎨 Generating image with Grok-2-Image...`);
-        imageUrl = await generateImage(blogTitle, seoResult.topics, metaDescription);
+        imageUrl = await generateImage(blogTitle, topics, metaDescription);
         console.log(`[Pipeline] ✅ Image generated with Grok-2-Image and uploaded to Railbucket`);
       } catch (grokError: any) {
         console.warn(`[Pipeline] ⚠️  Grok image generation failed: ${grokError.message}`);
@@ -661,12 +686,12 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
           slug,
           title: blogTitle, // Full title - no truncation (only metaTitle is limited to 60 chars)
           excerpt,
-          topics: seoResult.topics,
+          topics: topics,
           author: "Appify",
           imageUrl,
           date: item.pubDate ? new Date(item.pubDate) : new Date(),
           isFeatured: false,
-          metaTitle: (seoResult.metaTitle || blogTitle).slice(0, 60), // Meta title max 60 chars (for SEO), but main title is full length
+          metaTitle: blogTitle.slice(0, 60), // Meta title max 60 chars (for SEO), but main title is full length
           metaDescription: metaDescription.slice(0, 160), // Max 160 chars
           sourceUrl: item.link,
           status: "published", // Auto-publish articles
