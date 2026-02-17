@@ -16,76 +16,134 @@ function getOpenAI(): OpenAI {
  * Mirrors the Make.com GPT step with the same prompts.
  */
 /**
- * Extract key entities from a title dynamically with PRIMARY_ENTITY detection
- * This makes the system universal - works for any article title
+ * Extract key entities from a title using OpenAI for semantic understanding
  * Returns both primary entity (usually company name) and all key entities
  */
-function extractEntities(title: string): {
+async function extractEntities(title: string): Promise<{
+  primaryEntity: string | null;
+  keyEntities: string[];
+}> {
+  console.log(`[OpenAI] Extracting entities from title: ${title}`);
+  
+  const response = await getOpenAI().chat.completions.create({
+    model: "gpt-4o-mini",
+    temperature: 0.2, // Low temperature for consistent extraction
+    max_tokens: 300,
+    messages: [
+      {
+        role: "system",
+        content: `You are an entity extraction system. Extract key entities from a news article title.
+
+Extract:
+1. PRIMARY_ENTITY: The main company, organization, or product name (usually the first proper noun)
+2. KEY_ENTITIES: Important names, products, technologies, concepts, actions, or phrases (4-8 entities)
+
+Include:
+- Company/organization names (e.g., "Debenhams", "Valve", "OpenAI")
+- Product names (e.g., "Steam Deck OLED", "PayPal")
+- Technologies/concepts (e.g., "Agentic AI", "AI Commerce", "RAM crisis")
+- Actions/events (e.g., "pilot program", "integration", "stock shortage")
+- Important phrases (e.g., "supply chain", "out of stock")
+
+Exclude:
+- Common words (the, a, an, and, or, but, in, on, at, to, for, of, with, by, via, from)
+- Question words (How, Why, What, When, Where, Who, Which)
+- Generic verbs (is, are, be, will, can)
+
+OUTPUT FORMAT (JSON only, no other text):
+{
+  "primaryEntity": "Company or product name",
+  "keyEntities": ["Entity1", "Entity2", "Entity3", ...]
+}
+
+Example for "Debenhams pilots agentic AI commerce via PayPal integration":
+{
+  "primaryEntity": "Debenhams",
+  "keyEntities": ["Debenhams", "Agentic AI", "AI Commerce", "PayPal", "PayPal Integration", "Pilot Program"]
+}
+
+Example for "Valve's Steam Deck OLED will be 'intermittently' out of stock because of the RAM crisis":
+{
+  "primaryEntity": "Valve",
+  "keyEntities": ["Valve", "Steam Deck OLED", "RAM Crisis", "Stock Shortage", "Supply Chain", "Gaming Hardware"]
+}
+
+Return ONLY valid JSON, nothing else.`,
+      },
+      {
+        role: "user",
+        content: `Extract entities from this title: "${title}"`,
+      },
+    ],
+  });
+
+  const content = response.choices[0]?.message?.content || "";
+  
+  try {
+    // Extract JSON from response (might have markdown code blocks)
+    let jsonText = content.trim();
+    jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    
+    const result = JSON.parse(jsonText);
+    
+    const primaryEntity = result.primaryEntity || null;
+    let keyEntities = Array.isArray(result.keyEntities) ? result.keyEntities : [];
+    
+    // Ensure primary entity is in key entities if it exists
+    if (primaryEntity && !keyEntities.includes(primaryEntity)) {
+      keyEntities = [primaryEntity, ...keyEntities];
+    }
+    
+    // Limit to 6 entities
+    keyEntities = keyEntities.slice(0, 6);
+    
+    console.log(`[OpenAI] Extracted PRIMARY_ENTITY: ${primaryEntity || 'None'}`);
+    console.log(`[OpenAI] Extracted KEY_ENTITIES: ${keyEntities.join(', ')}`);
+    
+    return {
+      primaryEntity,
+      keyEntities
+    };
+  } catch (error: any) {
+    console.warn(`[OpenAI] Failed to parse entity extraction JSON: ${error.message}`);
+    console.warn(`[OpenAI] Raw response: ${content}`);
+    
+    // Fallback to code-based extraction
+    return extractEntitiesFallback(title);
+  }
+}
+
+/**
+ * Fallback code-based entity extraction (used if OpenAI fails)
+ */
+function extractEntitiesFallback(title: string): {
   primaryEntity: string | null;
   keyEntities: string[];
 } {
+  console.log(`[OpenAI] Using fallback code-based extraction`);
+  
   const entities: string[] = [];
-
-  // 1️⃣ Detect ALL CAPS acronyms (SRPO, GRPO, LLM, API)
   const allCaps = title.match(/\b[A-Z]{2,}\b/g) || [];
   entities.push(...allCaps);
-
-  // 2️⃣ Detect multi-word capitalized phrases (Copilot Studio, Kwai AI)
+  
   const multiCaps = title.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b/g) || [];
   entities.push(...multiCaps);
-
-  // 3️⃣ Detect single capitalized proper nouns (Debenhams, Microsoft)
+  
   const singleCaps = title.match(/\b[A-Z][a-z]+\b/g) || [];
   entities.push(...singleCaps);
-
-  // 4️⃣ Detect compound AI phrases (agentic AI, AI commerce, PayPal integration)
-  const compoundPhrases =
-    title.match(/\b([a-z]+ AI|AI [a-z]+|[A-Z][a-z]+ integration|AI commerce|AI platform|AI model)\b/gi) || [];
-  // Capitalize properly
-  const capitalizedPhrases = compoundPhrases.map(phrase => {
-    return phrase.split(/\s+/).map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    ).join(' ');
-  });
-  entities.push(...capitalizedPhrases);
-
-  // 5️⃣ Detect financial / performance claims (10x, $500M, 20%)
-  const metrics = title.match(/\d+x|\$\d+(?:M|B)?|\d+%/gi) || [];
-  entities.push(...metrics);
-
-  // 6️⃣ Extract quoted phrases
-  const quoted = title.match(/"([^"]+)"/g) || [];
-  entities.push(...quoted.map(q => q.replace(/"/g, '')));
-
-  // 7️⃣ Extract hyphenated names
-  const hyphenated = title.match(/\b[A-Z][a-z]+-[A-Z][a-z]+/g) || [];
-  entities.push(...hyphenated);
-
-  // 8️⃣ Clean stopwords
-  const stopCaps = [
-    "Can", "Will", "How", "Why", "When", "What", "Where",
-    "Who", "Which", "This", "That", "These", "Those",
-    "The", "A", "An"
-  ];
-
-  const commonWords = [
-    "the", "a", "an", "and", "or", "but", "in", "on", "at",
-    "to", "for", "of", "with", "by", "is", "are", "be",
-    "via", "from"
-  ];
-
+  
+  const stopCaps = ["Can", "Will", "How", "Why", "When", "What", "Where", "Who", "Which", "This", "That", "These", "Those", "The", "A", "An"];
+  const commonWords = ["the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by", "is", "are", "be", "via", "from"];
+  
   const cleaned = [...new Set(entities)]
     .filter(e => !commonWords.includes(e.toLowerCase()))
     .filter(e => !stopCaps.includes(e))
     .filter(e => e.length > 1);
-
-  // 9️⃣ Detect PRIMARY_ENTITY (first strong capitalized brand name)
+  
   const primaryMatch = title.match(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/);
   let primaryEntity = primaryMatch ? primaryMatch[0] : null;
   
-  // Validate primary entity is not a stopword
   if (primaryEntity && stopCaps.includes(primaryEntity)) {
-    // Try to find next capitalized word
     const nextMatch = title.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/g);
     if (nextMatch && nextMatch.length > 1) {
       primaryEntity = nextMatch[1];
@@ -93,12 +151,11 @@ function extractEntities(title: string): {
       primaryEntity = null;
     }
   }
-
-  // 🔟 Prioritize primary entity first
+  
   const finalEntities = primaryEntity
     ? [primaryEntity, ...cleaned.filter(e => e !== primaryEntity && !e.toLowerCase().includes(primaryEntity.toLowerCase()))]
     : cleaned;
-
+  
   return {
     primaryEntity,
     keyEntities: finalEntities.slice(0, 6)
@@ -224,8 +281,8 @@ FORBIDDEN: Generic AI headings.`,
 export async function generateBlogContent(item: RSSItem): Promise<string> {
   console.log(`[OpenAI] Generating blog for: ${item.title}`);
 
-  // Extract key entities from title dynamically
-  const { primaryEntity, keyEntities } = extractEntities(item.title);
+  // Extract key entities from title using OpenAI
+  const { primaryEntity, keyEntities } = await extractEntities(item.title);
   const primaryTopic = item.title;
   
   // Fallback: If we have less than 2 entities, add primary topic as context
