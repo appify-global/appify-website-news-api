@@ -64,7 +64,7 @@ CRITICAL RULES:
 4. **Avoid generic AI imagery** (brains, neural networks) unless the article is specifically about neural networks or brain-like AI
 5. Focus on concrete visual elements (objects, scenes, concepts) that match the heading - not abstract ideas
 6. **BASE STYLE** - All images must use this foundation:
-   2D modern editorial illustration, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold. Flat, two-dimensional style, not 3D or dimensional.
+   Flat vector editorial illustration, bold shapes, clean outlines, high contrast color blocks, minimal shading, clear conceptual metaphor, modern tech publication aesthetic. No photorealism, no corporate stock-photo look, no realistic dashboards, no business meeting scenes.
 7. **COLOR VARIETY** - Use diverse, topic-appropriate color palettes. Do NOT default to blue for all images:
    - Finance/Banking → green (money), gold (value), purple (premium), or blue-green combinations
    - Gaming → vibrant colors (red, orange, purple, cyan), neon accents, dynamic color schemes
@@ -76,16 +76,16 @@ CRITICAL RULES:
    - Enterprise/Corporate → varied professional palettes (not just blue): deep purples, forest greens, warm grays
    - Default → use colors that match the topic's mood and industry, avoid blue unless specifically appropriate
    - Vary colors between articles - do not use the same blue palette for every image
-8. **DOMAIN-SPECIFIC ADAPTATIONS** - Apply domain-appropriate visual concepts while maintaining the illustrated editorial style:
-   - Gaming → gaming hardware, controllers, immersive tech environments, vibrant colors, dynamic compositions (illustrated, not photographic)
-   - Finance/Banking → fintech dashboards, financial data visualizations, payment interfaces, charts and graphs (illustrated, not photographic)
-   - Healthcare/Medical → medical data screens, clinical interfaces, research visualizations, health tech (illustrated, not photographic)
-   - Enterprise/Corporate → business environments, office spaces, corporate tech (illustrated, no people)
-   - AI research/Technical → data visualization scenes, abstract tech elements, code/data screens, analytical interfaces (illustrated, not photographic)
-   - Media/Publishing → editorial environments, newsroom tech, publishing interfaces (illustrated, no people)
-   - Hardware/Products → product illustrations, technical devices, precise details (illustrated, not photographic)
-   - Automation/Workflow → workflow diagrams, process visualizations, automation interfaces, flow charts (illustrated, not photographic)
-   - Default → technology, innovation, digital transformation (illustrated, not photographic)
+8. **DOMAIN-SPECIFIC ADAPTATIONS** - Apply domain-appropriate visual concepts while maintaining flat vector editorial style:
+   - Gaming → gaming hardware, controllers, game elements, vibrant colors, dynamic compositions (flat vector, bold shapes)
+   - Finance/Banking → financial concepts, payment flows, currency elements, growth indicators, banking infrastructure (flat vector, NOT realistic dashboards)
+   - Healthcare/Medical → medical concepts, health symbols, research elements, clinical tools (flat vector, NOT realistic screens)
+   - Enterprise/Corporate → corporate concepts, business elements, office objects (flat vector, NO business meeting scenes)
+   - AI research/Technical → abstract tech elements, conceptual AI visuals, analytical concepts (flat vector, NOT realistic screens or dashboards)
+   - Media/Publishing → editorial concepts, publishing elements, content creation tools (flat vector, NO realistic newsroom scenes)
+   - Hardware/Products → product illustrations, technical devices, precise details (flat vector, bold shapes)
+   - Automation/Workflow → workflow diagrams, process flows, automation concepts (flat vector, clean outlines)
+   - Default → technology concepts, innovation symbols, digital transformation metaphors (flat vector, bold shapes)
 9. **NO HUMANS** - Do not show people, faces, or human figures. Focus on objects, environments, technology, data visualizations, interfaces, workflows, or abstract concepts.
 10. **Avoid repetitive templates** - Use varied composition, perspective, and lighting depending on topic. No generic boardroom scenes or office environments with people.
 11. No text, no words, no letters - pure visual elements only
@@ -110,33 +110,33 @@ STEP 1: DETECT THE DOMAIN from the article title/description:
 - If title mentions "automation", "workflow", "process" → Automation/Workflow domain
 - Otherwise → Default domain
 
-STEP 2: APPLY DOMAIN-SPECIFIC VISUAL CONCEPTS (all illustrated, not photographic):
-- Media/Publishing → editorial environments, newsroom tech, publishing interfaces, screens showing content (illustrated, no people)
-- Finance/Banking → fintech dashboards, financial data visualizations, payment interfaces, charts and graphs (illustrated, not photographic)
-- Gaming → gaming hardware, controllers, immersive tech environments, vibrant colors, dynamic compositions (illustrated, not photographic)
-- Healthcare/Medical → medical data screens, clinical interfaces, research visualizations, health tech (illustrated, not photographic)
-- Enterprise/Corporate → business environments, office spaces, corporate tech (illustrated, no people)
-- AI research/Technical → data visualization scenes, abstract tech elements, code/data screens, analytical interfaces (illustrated, not photographic)
-- Hardware/Products → product illustrations, technical devices, precise details (illustrated, not photographic)
-- Automation/Workflow → workflow diagrams, process visualizations, automation interfaces, flow charts, process flows (illustrated, not photographic)
-- Default → technology, innovation, digital transformation (illustrated, not photographic)
+STEP 2: APPLY DOMAIN-SPECIFIC VISUAL CONCEPTS (all flat vector editorial):
+- Media/Publishing → editorial concepts, publishing elements, content creation tools (flat vector, NO realistic newsroom scenes)
+- Finance/Banking → financial concepts, payment flows, currency elements, growth indicators (flat vector, NOT realistic dashboards)
+- Gaming → gaming hardware, controllers, game elements, vibrant colors (flat vector, bold shapes)
+- Healthcare/Medical → medical concepts, health symbols, research elements (flat vector, NOT realistic screens)
+- Enterprise/Corporate → corporate concepts, business elements, office objects (flat vector, NO business meeting scenes)
+- AI research/Technical → abstract tech elements, conceptual AI visuals, analytical concepts (flat vector, NOT realistic screens or dashboards)
+- Hardware/Products → product illustrations, technical devices, precise details (flat vector, bold shapes)
+- Automation/Workflow → workflow diagrams, process flows, automation concepts (flat vector, clean outlines)
+- Default → technology concepts, innovation symbols, digital transformation metaphors (flat vector, bold shapes)
 
 BASE STYLE (applies to ALL domains):
-2D modern editorial illustration, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold. Flat, two-dimensional style, not 3D or dimensional.
+Flat vector editorial illustration, bold shapes, clean outlines, high contrast color blocks, minimal shading, clear conceptual metaphor, modern tech publication aesthetic. No photorealism, no corporate stock-photo look, no realistic dashboards, no business meeting scenes.
 
 COLOR REQUIREMENT: Use diverse, topic-appropriate color palettes. Do NOT default to blue for all images. Vary colors between articles - use greens, purples, oranges, reds, golds, teals, or other colors that match the topic's mood and industry. Only use blue when it's specifically appropriate for the domain (e.g., ocean/water themes, specific brand colors). Finance can use green/gold, Gaming can use vibrant reds/oranges, Healthcare can use soft greens, AI research can use purple/orange/green combinations, etc.
 
 CRITICAL: NO HUMANS - Do not show people, faces, or human figures. Focus on objects, environments, technology, data visualizations, interfaces, workflows, or abstract concepts.
 
-All visuals must be 2D ILLUSTRATED, not photographic or 3D. Flat, two-dimensional editorial illustrations. Even technical concepts should be rendered as flat 2D editorial illustrations.
+All visuals must be flat vector editorial illustrations with bold shapes, clean outlines, high contrast color blocks, and minimal shading. Use clear conceptual metaphors. Modern tech publication aesthetic. No photorealism, no corporate stock-photo look, no realistic dashboards, no business meeting scenes.
 
 Article Context:
 ${context}
 
 Generate a visual prompt that:
 1. Detects the domain from the title/description
-2. Applies domain-specific visual concepts (workflows for automation, dashboards for finance, etc.) - all ILLUSTRATED, not photographic
-3. Uses the base style: 2D modern editorial illustration, flat two-dimensional style, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold
+2. Applies domain-specific visual concepts using clear conceptual metaphors - all flat vector editorial style, NOT realistic dashboards, screens, or business scenes
+3. Uses the base style: flat vector editorial illustration, bold shapes, clean outlines, high contrast color blocks, minimal shading, clear conceptual metaphor, modern tech publication aesthetic. No photorealism, no corporate stock-photo look, no realistic dashboards, no business meeting scenes
 4. Uses diverse, topic-appropriate colors - do NOT default to blue. Vary colors: greens, purples, oranges, reds, golds, teals, or other colors matching the topic's mood
 5. Shows NO humans, people, or faces - only objects, environments, technology, data visualizations, interfaces, workflows, or abstract concepts`,
         },
@@ -180,7 +180,7 @@ Generate a visual prompt that:
       imageDescription = "modern technology, innovation, digital transformation";
     }
     
-    return `Create a blog hero image representing: ${imageDescription}. Style: 2D modern editorial illustration, flat two-dimensional style, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold. Use diverse, topic-appropriate colors - do NOT default to blue. Vary colors: greens, purples, oranges, reds, golds, teals, or other colors matching the topic. 2D illustrated, not photographic or 3D. No humans, no people, no faces. No text, no words, just visual elements.`;
+    return `Create a blog hero image representing: ${imageDescription}. Style: flat vector editorial illustration, bold shapes, clean outlines, high contrast color blocks, minimal shading, clear conceptual metaphor, modern tech publication aesthetic. No photorealism, no corporate stock-photo look, no realistic dashboards, no business meeting scenes. Use diverse, topic-appropriate colors - do NOT default to blue. Vary colors: greens, purples, oranges, reds, golds, teals, or other colors matching the topic. No humans, no people, no faces. No text, no words, just visual elements.`;
   }
 }
 
