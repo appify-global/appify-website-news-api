@@ -64,7 +64,7 @@ CRITICAL RULES:
 4. **Avoid generic AI imagery** (brains, neural networks) unless the article is specifically about neural networks or brain-like AI
 5. Focus on concrete visual elements (objects, scenes, concepts) that match the heading - not abstract ideas
 6. **BASE STYLE** - All images must use this foundation:
-   Modern editorial illustration, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold.
+   2D modern editorial illustration, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold. Flat, two-dimensional style, not 3D or dimensional.
 7. **COLOR VARIETY** - Use diverse, topic-appropriate color palettes. Do NOT default to blue for all images:
    - Finance/Banking → green (money), gold (value), purple (premium), or blue-green combinations
    - Gaming → vibrant colors (red, orange, purple, cyan), neon accents, dynamic color schemes
@@ -122,13 +122,13 @@ STEP 2: APPLY DOMAIN-SPECIFIC VISUAL CONCEPTS (all illustrated, not photographic
 - Default → technology, innovation, digital transformation (illustrated, not photographic)
 
 BASE STYLE (applies to ALL domains):
-Modern editorial illustration, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold.
+2D modern editorial illustration, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold. Flat, two-dimensional style, not 3D or dimensional.
 
 COLOR REQUIREMENT: Use diverse, topic-appropriate color palettes. Do NOT default to blue for all images. Vary colors between articles - use greens, purples, oranges, reds, golds, teals, or other colors that match the topic's mood and industry. Only use blue when it's specifically appropriate for the domain (e.g., ocean/water themes, specific brand colors). Finance can use green/gold, Gaming can use vibrant reds/oranges, Healthcare can use soft greens, AI research can use purple/orange/green combinations, etc.
 
 CRITICAL: NO HUMANS - Do not show people, faces, or human figures. Focus on objects, environments, technology, data visualizations, interfaces, workflows, or abstract concepts.
 
-All visuals must be ILLUSTRATED, not photographic. Even technical concepts should be rendered as editorial illustrations.
+All visuals must be 2D ILLUSTRATED, not photographic or 3D. Flat, two-dimensional editorial illustrations. Even technical concepts should be rendered as flat 2D editorial illustrations.
 
 Article Context:
 ${context}
@@ -136,7 +136,7 @@ ${context}
 Generate a visual prompt that:
 1. Detects the domain from the title/description
 2. Applies domain-specific visual concepts (workflows for automation, dashboards for finance, etc.) - all ILLUSTRATED, not photographic
-3. Uses the base style: modern editorial illustration, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold
+3. Uses the base style: 2D modern editorial illustration, flat two-dimensional style, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold
 4. Uses diverse, topic-appropriate colors - do NOT default to blue. Vary colors: greens, purples, oranges, reds, golds, teals, or other colors matching the topic's mood
 5. Shows NO humans, people, or faces - only objects, environments, technology, data visualizations, interfaces, workflows, or abstract concepts`,
         },
@@ -180,7 +180,7 @@ Generate a visual prompt that:
       imageDescription = "modern technology, innovation, digital transformation";
     }
     
-    return `Create a blog hero image representing: ${imageDescription}. Style: modern editorial illustration, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold. Use diverse, topic-appropriate colors - do NOT default to blue. Vary colors: greens, purples, oranges, reds, golds, teals, or other colors matching the topic. Illustrated, not photographic. No humans, no people, no faces. No text, no words, just visual elements.`;
+    return `Create a blog hero image representing: ${imageDescription}. Style: 2D modern editorial illustration, flat two-dimensional style, sharp, high-contrast lighting, cinematic composition, minimal clutter, professional publication quality, distinctive and visually bold. Use diverse, topic-appropriate colors - do NOT default to blue. Vary colors: greens, purples, oranges, reds, golds, teals, or other colors matching the topic. 2D illustrated, not photographic or 3D. No humans, no people, no faces. No text, no words, just visual elements.`;
   }
 }
 
