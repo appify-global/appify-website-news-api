@@ -312,7 +312,7 @@ newsRouter.get("/image/:slug", async (req, res) => {
 
         // Set proper headers for image
         res.setHeader("Content-Type", imageRes.headers["content-type"] || "image/png");
-        res.setHeader("Cache-Control", "public, max-age=31536000"); // Cache for 1 year
+        res.setHeader("Cache-Control", "public, max-age=3600"); // Cache for 1 hour (reduced from 1 year for easier updates)
         res.setHeader("Access-Control-Allow-Origin", "*");
 
         // Stream image to response
