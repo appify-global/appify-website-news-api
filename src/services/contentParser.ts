@@ -86,6 +86,11 @@ export function parseContentBlocks(htmlContent: string): ContentBlock[] {
       continue;
     }
 
+    // Skip meta tags sections
+    if (trimmed.match(/Meta\s+Title|Meta\s+Description|Topics?/i)) {
+      continue;
+    }
+    
     // Paragraph: strip <p> tags and other inline HTML, keep the text
     let text = trimmed
       .replace(/<\/?p[^>]*>/gi, "")

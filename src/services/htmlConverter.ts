@@ -109,6 +109,22 @@ Only output valid HTML — no labels, commentary, or non-HTML content.`,
   htmlContent = htmlContent.replace(/<span[^>]*>/gi, "");
   htmlContent = htmlContent.replace(/<\/span>/gi, "");
   htmlContent = htmlContent.replace(/<h1[^>]*>.*?<\/h1>/gi, ""); // Remove H1 tags
+  
+  // Remove meta tags sections (Meta Title, Meta Description, Topics) that might appear at the end
+  htmlContent = htmlContent.replace(/<h2[^>]*>\s*Meta\s+Title\s*<\/h2>/gi, "");
+  htmlContent = htmlContent.replace(/<h3[^>]*>\s*Meta\s+Title\s*<\/h3>/gi, "");
+  htmlContent = htmlContent.replace(/<p[^>]*>\s*Meta\s+Title\s*<\/p>/gi, "");
+  htmlContent = htmlContent.replace(/<h2[^>]*>\s*Meta\s+Description\s*<\/h2>/gi, "");
+  htmlContent = htmlContent.replace(/<h3[^>]*>\s*Meta\s+Description\s*<\/h3>/gi, "");
+  htmlContent = htmlContent.replace(/<p[^>]*>\s*Meta\s+Description\s*<\/p>/gi, "");
+  htmlContent = htmlContent.replace(/<h2[^>]*>\s*Topics?\s*<\/h2>/gi, "");
+  htmlContent = htmlContent.replace(/<h3[^>]*>\s*Topics?\s*<\/h3>/gi, "");
+  htmlContent = htmlContent.replace(/<p[^>]*>\s*Topics?\s*<\/p>/gi, "");
+  
+  // Remove any paragraphs that contain "META_TITLE:", "META_DESCRIPTION:", or "TOPICS:"
+  htmlContent = htmlContent.replace(/<p[^>]*>.*?META_TITLE:.*?<\/p>/gi, "");
+  htmlContent = htmlContent.replace(/<p[^>]*>.*?META_DESCRIPTION:.*?<\/p>/gi, "");
+  htmlContent = htmlContent.replace(/<p[^>]*>.*?TOPICS:.*?<\/p>/gi, "");
 
   // Convert any bullet points/lists that slipped through into paragraphs
   // This is a fallback - the LLM should have already expanded them, but if not, convert them here
