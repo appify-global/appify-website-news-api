@@ -419,8 +419,20 @@ ABSOLUTE FORBIDDEN (WILL CAUSE INVALID RESPONSE):
 - Generic AI benefits, strategies, or how-to guides
 - Definition sections about AI app development
 
+NO HALLUCINATED ACTIONS:
+- Do NOT claim "${primaryEntity || 'the company'}" "is doing" something unless it is explicitly stated in the RSS content
+- Do NOT claim actions like "exploring alternative suppliers", "investing in R&D", "considering options" unless the RSS article explicitly states these
+- If you add analysis or speculation, label it clearly as analysis and use cautious wording ("may", "could", "might") only when clearly marked as analysis
+- Stick to facts stated in the RSS content - do not invent plausible-sounding strategies
+
+NO EXTRA PRODUCTS:
+- Do NOT mention other products, services, or product lines unless they are explicitly mentioned in the RSS content
+- Do NOT reference unrelated products (e.g., "Steam Machine", "Steam Controller" when article is about "Steam Deck OLED")
+- Only discuss products/services that appear in the RSS article
+
 IF YOU WRITE ABOUT GENERIC AI APP DEVELOPMENT INSTEAD OF "${primaryTopic}", YOUR RESPONSE IS INVALID.
 IF YOU DO NOT USE THE EXACT HEADINGS FROM THE OUTLINE, YOUR RESPONSE IS INVALID.
+IF YOU CLAIM ACTIONS NOT STATED IN THE RSS CONTENT, YOUR RESPONSE IS INVALID.
 
 Write the article now. Start with the first heading from the outline, then write content, then use the second heading, and so on.
 
@@ -511,7 +523,16 @@ ABSOLUTE REQUIREMENTS:
 4. FORBIDDEN: "AI App Development", "Benefits of AI", "How to Implement AI", generic AI content
 5. The article is about "${primaryTopic}", NOT general AI topics
 
-If you write generic AI content or create your own headings, your response is INVALID.`,
+NO HALLUCINATED ACTIONS:
+- Do NOT claim "${primaryEntity || 'the company'}" "is doing" something unless it is explicitly stated in the RSS content
+- Do NOT claim actions like "exploring", "investing", "considering" unless the RSS article explicitly states these
+- If you add analysis, label it as analysis and use cautious wording ("may", "could") only when clearly marked as analysis
+
+NO EXTRA PRODUCTS:
+- Do NOT mention other products unless they are explicitly mentioned in the RSS content
+- Only discuss products/services that appear in the RSS article
+
+If you write generic AI content, create your own headings, or claim actions not in the RSS content, your response is INVALID.`,
         },
         {
           role: "user",
