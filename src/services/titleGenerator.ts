@@ -32,10 +32,11 @@ CRITICAL RULES - FOLLOW THESE EXACTLY:
 1. **Keep the original title's meaning and structure** - only make slight adjustments
 2. **ABSOLUTELY NEVER truncate, shorten, or cut off the title** - keep the COMPLETE FULL original title
 3. **If the original title is long, KEEP IT LONG** - do NOT shorten it under any circumstances
-4. If the original title lacks SEO keywords, add ONE keyword naturally (e.g., "AI app development", "app development") ONLY if it fits naturally
-5. Do NOT rewrite the title completely - preserve the original essence
-6. **The title must be the FULL LENGTH of the original** - never add "..." or truncate
-7. Return ONLY the optimized title, no explanations, NO TRUNCATION WHATSOEVER
+4. **DO NOT add "app development", "AI app development", or similar phrases** unless the original title explicitly mentions app development
+5. **DO NOT add generic SEO keywords** - preserve the original topic and meaning
+6. Do NOT rewrite the title completely - preserve the original essence
+7. **The title must be the FULL LENGTH of the original** - never add "..." or truncate
+8. Return ONLY the optimized title, no explanations, NO TRUNCATION WHATSOEVER
 
 Return the title as plain text (no markdown, no quotes, no formatting).`,
       },

@@ -471,6 +471,14 @@ Do not create new headings. Copy the headings exactly as shown above.`,
     generatedHeadings.some(genHeading => genHeading === outlineHeading || genHeading.includes(outlineHeading) || outlineHeading.includes(genHeading))
   ).length;
   
+  // Log heading validation results
+  console.log(`[OpenAI] Heading validation: ${matchingHeadings}/${outlineHeadings.length} outline headings found in generated content`);
+  if (matchingHeadings === outlineHeadings.length) {
+    console.log(`[OpenAI] ✅ All outline headings used correctly`);
+  } else if (matchingHeadings >= outlineHeadings.length * 0.7) {
+    console.log(`[OpenAI] ⚠️  Some outline headings missing, but above threshold (70%)`);
+  }
+  
   // If content is generic or doesn't follow outline, regenerate
   if (hasGenericAI || !hasPrimaryEntity || matchingHeadings < outlineHeadings.length * 0.7) {
     console.warn(`[OpenAI] Content validation failed. Generic AI: ${hasGenericAI}, Has Entity: ${hasPrimaryEntity}, Outline Match: ${matchingHeadings}/${outlineHeadings.length}. Generated headings: ${generatedHeadings.slice(0, 3).join(', ')}... Regenerating...`);
