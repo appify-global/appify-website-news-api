@@ -63,8 +63,14 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
   console.log(`[OpenAI] Generating blog for: ${item.title}`);
 
   // Extract key entities from title dynamically
-  const keyEntities = extractEntities(item.title);
+  let keyEntities = extractEntities(item.title);
   const primaryTopic = item.title;
+  
+  // Fallback: If we have less than 2 entities, add primary topic as context
+  if (keyEntities.length < 2) {
+    console.log(`[OpenAI] Warning: Only ${keyEntities.length} entities extracted. Adding primary topic as fallback.`);
+    keyEntities.push(primaryTopic);
+  }
   
   console.log(`[OpenAI] Extracted entities: ${keyEntities.join(', ')}`);
 
@@ -101,7 +107,7 @@ KEY_ENTITIES: ${keyEntities.length > 0 ? keyEntities.join(', ') : '[Extract from
 
 ENTITY ANCHORING RULES:
 
-1. Generate an outline first (internally).
+1. Before writing the full article, internally generate a structured H2 outline using KEY_ENTITIES. Ensure each H2 includes at least one KEY_ENTITY.
 2. Every H2 heading must contain at least one KEY_ENTITY.
 3. At least 70% of paragraphs must reference a KEY_ENTITY.
 4. The introduction must reference at least two KEY_ENTITIES within the first 120 words.
