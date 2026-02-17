@@ -157,6 +157,109 @@ adminRouter.post("/restore-from-urls", async (req, res) => {
   }
 });
 
+// POST /api/admin/regenerate-article - Regenerate content for a specific article by title
+adminRouter.post("/regenerate-article", async (req, res) => {
+  try {
+    const { articleTitle } = req.body;
+    
+    if (!articleTitle) {
+      return res.status(400).json({
+        success: false,
+        error: "Please provide 'articleTitle' in the request body",
+      });
+    }
+
+    console.log(`[ADMIN] Regenerating article: ${articleTitle}`);
+    
+    // Find the article
+    const article = await prisma.article.findFirst({
+      where: {
+        title: {
+          contains: articleTitle,
+          mode: 'insensitive'
+        }
+      },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        sourceUrl: true,
+        topics: true,
+        metaDescription: true,
+      },
+    });
+
+    if (!article) {
+      return res.status(404).json({
+        success: false,
+        error: "Article not found",
+      });
+    }
+
+    console.log(`[ADMIN] Found article: ${article.slug}`);
+
+    // Create mock RSS item with the article title
+    const mockItem = {
+      title: article.title,
+      link: article.sourceUrl || `https://example.com/${article.slug}`,
+      content: "",
+      contentSnippet: article.metaDescription || "",
+      pubDate: new Date().toISOString(),
+    };
+    
+    // Regenerate content using OpenAI (this will use the improved prompts)
+    console.log(`[ADMIN] Generating new content...`);
+    const rawBlog = await generateBlogContent(mockItem);
+    const seoResult = await optimizeForSEO(rawBlog);
+    const htmlContent = await convertToHTML(seoResult.optimizedContent);
+    const contentBlocks = parseContentBlocks(htmlContent);
+    
+    // Generate new title, meta description, and excerpt
+    const blogTitle = await generateBlogTitle(htmlContent, article.title);
+    const metaDescription = await generateMetaDescription(htmlContent);
+    const excerpt = await generateExcerpt(htmlContent, article.title);
+    
+    // Store as JSON
+    const contentJson = contentBlocks.map((block) => ({
+      type: block.type,
+      text: block.text || null,
+      src: block.src || null,
+      alt: block.alt || null,
+    }));
+    
+    // Update article with new content
+    await prisma.article.update({
+      where: { id: article.id },
+      data: {
+        title: blogTitle,
+        excerpt: excerpt,
+        metaDescription: metaDescription.slice(0, 160),
+        metaTitle: (seoResult.metaTitle || blogTitle.slice(0, 60)).slice(0, 60),
+        topics: seoResult.topics,
+        content: contentJson as any,
+      },
+    });
+    
+    console.log(`[ADMIN] ✅ Regenerated: ${article.slug}`);
+    
+    res.json({
+      success: true,
+      message: `Article regenerated successfully`,
+      article: {
+        slug: article.slug,
+        title: blogTitle,
+        excerpt: excerpt,
+      },
+    });
+  } catch (error: any) {
+    console.error("[ADMIN] Regenerate article error:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 // POST /api/admin/regenerate-content - Regenerate content for all published articles (or articles with NULL content)
 adminRouter.post("/regenerate-content", async (_req, res) => {
   try {
