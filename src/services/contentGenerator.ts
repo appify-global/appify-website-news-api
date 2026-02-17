@@ -156,6 +156,24 @@ PRIMARY_TOPIC: "${primaryTopic}"
 PRIMARY_ENTITY: "${primaryEntity || primaryTopic}"
 KEY_ENTITIES: ${finalKeyEntities.length > 0 ? finalKeyEntities.join(', ') : '[Extract from title]'}
 
+HARD FAILURE CONDITIONS (NON-NEGOTIABLE):
+- If PRIMARY_ENTITY does NOT appear in at least 3 section headings, the response is INVALID and must be rewritten.
+- If the article does NOT explicitly discuss the PRIMARY_ENTITY's action described in the title (e.g. pilot, launch, integration, acquisition), the response is INVALID.
+- If the article frames the topic as general "AI app development" instead of the PRIMARY_TOPIC, the response is INVALID.
+- If KEY_ENTITIES are not prominently featured throughout the article, the response is INVALID.
+
+ABSOLUTE BAN:
+- Do NOT frame this article as "AI in app development", "AI app development", "benefits of AI apps", or any generic AI explainer.
+- The article is about a SPECIFIC COMPANY ACTION, not AI generally.
+- Do NOT write generic headings like "Understanding AI", "Benefits of AI App Development", "The Future of AI in App Development".
+- Generic AI app development content is FORBIDDEN and will cause the response to be INVALID.
+
+TITLE ACTION ENFORCEMENT:
+- Identify the ACTION in the title (e.g. pilots, launches, integrates, acquires, tests, announces).
+- Every major section must relate back to this ACTION.
+- The article must explicitly discuss WHAT the PRIMARY_ENTITY is doing (the action), WHY they're doing it, and HOW it works.
+- If the ACTION is not clearly discussed throughout the article, rewrite before finishing.
+
 ENTITY ANCHORING RULES:
 
 1. Before writing the full article, internally generate a structured H2 outline using KEY_ENTITIES. Ensure each H2 includes at least one KEY_ENTITY.
@@ -164,7 +182,6 @@ ENTITY ANCHORING RULES:
 4. At least 70% of paragraphs must reference a KEY_ENTITY.
 5. The introduction must reference at least two KEY_ENTITIES within the first 120 words.
 6. The article must remain strictly within the scope of PRIMARY_TOPIC.
-7. If PRIMARY_ENTITY does not appear in at least 3 H2 headings, rewrite the article before completing.
 
 FORBIDDEN:
 - Generic "AI app development" filler.
@@ -179,16 +196,30 @@ SEO REQUIREMENTS:
 - Include 4-6 contextual links (internal: /automation, /projects, /studio; plus credible external sources).
 - No meta sections or keyword lists.
 
-If the article drifts from PRIMARY_TOPIC or becomes generic, correct it before finishing.`,
+FORMATTING REQUIREMENTS:
+- Use markdown format: ## for H2 headings, ### for H3 subheadings
+- ALL headings MUST use ## or ### prefix (e.g., "## DEBENHAMS' AGENTIC AI COMMERCE STRATEGY")
+- Do NOT output headings in ALL CAPS without markdown prefix
+- Do NOT output plain text headings - they must have ## or ###
+- Paragraphs should be plain text (no markdown, no prefixes)
+
+VALIDATION BEFORE COMPLETION:
+Before finishing, verify:
+1. PRIMARY_ENTITY appears in at least 3 headings
+2. The title's ACTION is explicitly discussed
+3. The article is NOT framed as generic "AI app development"
+4. KEY_ENTITIES are prominently featured
+
+If any validation fails, rewrite the article before completing.`,
       },
       {
         role: "user",
         content: `RSS Article:
 Title: ${item.title}
 URL: ${item.link || 'N/A'}
-Content: ${articleContent.slice(0, 5000) || item.contentSnippet || item.content || 'No content available'}
+Content: ${articleContent.slice(0, 1500) || item.contentSnippet || item.content || 'No content available'}
 
-Write the final article now.`,
+Write the final article now. Focus on the TITLE and KEY_ENTITIES, not the RSS content style.`,
       },
     ],
   });
@@ -309,6 +340,33 @@ Write the final article now.`,
   
   // Remove any "Conclusion" sections (we don't want conclusion sections)
   content = content.replace(/\n##\s+Conclusion\s*\n[\s\S]*$/gim, "");
+  
+  // Ensure all headings have proper markdown format
+  // Fix headings that are ALL CAPS without ## prefix
+  const lines = content.split('\n');
+  const fixedLines: string[] = [];
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+    
+    // Check if this looks like a heading (ALL CAPS, no ## prefix, on its own line)
+    if (trimmed && 
+        trimmed === trimmed.toUpperCase() && 
+        trimmed.length > 10 && 
+        trimmed.length < 100 &&
+        !trimmed.match(/^##\s+/) &&
+        !trimmed.match(/^###\s+/) &&
+        (i === 0 || lines[i-1].trim() === '') &&
+        (i === lines.length - 1 || lines[i+1].trim() === '' || lines[i+1].trim().match(/^[A-Z]/))) {
+      // Convert to markdown heading
+      fixedLines.push(`## ${trimmed}`);
+    } else {
+      fixedLines.push(line);
+    }
+  }
+  
+  content = fixedLines.join('\n');
   
   // Clean up extra whitespace
   content = content.trim();
