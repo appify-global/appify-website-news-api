@@ -16,63 +16,113 @@ function getOpenAI(): OpenAI {
  * Mirrors the Make.com GPT step with the same prompts.
  */
 /**
- * Extract key entities from a title dynamically
+ * Extract key entities from a title dynamically with PRIMARY_ENTITY detection
  * This makes the system universal - works for any article title
+ * Returns both primary entity (usually company name) and all key entities
  */
-function extractEntities(title: string): string[] {
+function extractEntities(title: string): {
+  primaryEntity: string | null;
+  keyEntities: string[];
+} {
   const entities: string[] = [];
-  
-  // Extract ALL CAPS words (SRPO, GRPO, LLM, API, etc.)
+
+  // 1️⃣ Detect ALL CAPS acronyms (SRPO, GRPO, LLM, API)
   const allCaps = title.match(/\b[A-Z]{2,}\b/g) || [];
   entities.push(...allCaps);
-  
-  // Extract multi-word capitalized phrases (e.g., "Copilot Studio", "Kwai AI")
+
+  // 2️⃣ Detect multi-word capitalized phrases (Copilot Studio, Kwai AI)
   const multiCaps = title.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+\b/g) || [];
   entities.push(...multiCaps);
-  
-  // Extract single capitalized words (company/product names)
-  const capitalized = title.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b/g) || [];
-  entities.push(...capitalized.filter(e => e.length > 2));
-  
-  // Extract quoted phrases
+
+  // 3️⃣ Detect single capitalized proper nouns (Debenhams, Microsoft)
+  const singleCaps = title.match(/\b[A-Z][a-z]+\b/g) || [];
+  entities.push(...singleCaps);
+
+  // 4️⃣ Detect compound AI phrases (agentic AI, AI commerce, PayPal integration)
+  const compoundPhrases =
+    title.match(/\b([a-z]+ AI|AI [a-z]+|[A-Z][a-z]+ integration|AI commerce|AI platform|AI model)\b/gi) || [];
+  // Capitalize properly
+  const capitalizedPhrases = compoundPhrases.map(phrase => {
+    return phrase.split(/\s+/).map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+    ).join(' ');
+  });
+  entities.push(...capitalizedPhrases);
+
+  // 5️⃣ Detect financial / performance claims (10x, $500M, 20%)
+  const metrics = title.match(/\d+x|\$\d+(?:M|B)?|\d+%/gi) || [];
+  entities.push(...metrics);
+
+  // 6️⃣ Extract quoted phrases
   const quoted = title.match(/"([^"]+)"/g) || [];
   entities.push(...quoted.map(q => q.replace(/"/g, '')));
-  
-  // Extract numbers with context (10x, $500M, etc.)
-  const numbers = title.match(/\d+x|\$\d+M?|\d+%|\d+\.\d+x/gi) || [];
-  entities.push(...numbers);
-  
-  // Extract hyphenated names
+
+  // 7️⃣ Extract hyphenated names
   const hyphenated = title.match(/\b[A-Z][a-z]+-[A-Z][a-z]+/g) || [];
   entities.push(...hyphenated);
-  
-  // Remove duplicates and common words
-  const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'be', 'can', 'via', 'with', 'in', 'at'];
-  
-  // Filter out stopword capitals (Can, Will, How, Why, etc.)
-  const stopCaps = ['Can', 'Will', 'How', 'Why', 'When', 'What', 'Where', 'Who', 'Which', 'This', 'That', 'These', 'Those', 'The', 'A', 'An'];
-  
-  return [...new Set(entities)]
+
+  // 8️⃣ Clean stopwords
+  const stopCaps = [
+    "Can", "Will", "How", "Why", "When", "What", "Where",
+    "Who", "Which", "This", "That", "These", "Those",
+    "The", "A", "An"
+  ];
+
+  const commonWords = [
+    "the", "a", "an", "and", "or", "but", "in", "on", "at",
+    "to", "for", "of", "with", "by", "is", "are", "be",
+    "via", "from"
+  ];
+
+  const cleaned = [...new Set(entities)]
     .filter(e => !commonWords.includes(e.toLowerCase()))
     .filter(e => !stopCaps.includes(e))
-    .filter(e => e.length > 1)
-    .slice(0, 6); // Limit to top 6 entities
+    .filter(e => e.length > 1);
+
+  // 9️⃣ Detect PRIMARY_ENTITY (first strong capitalized brand name)
+  const primaryMatch = title.match(/^[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/);
+  let primaryEntity = primaryMatch ? primaryMatch[0] : null;
+  
+  // Validate primary entity is not a stopword
+  if (primaryEntity && stopCaps.includes(primaryEntity)) {
+    // Try to find next capitalized word
+    const nextMatch = title.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/g);
+    if (nextMatch && nextMatch.length > 1) {
+      primaryEntity = nextMatch[1];
+    } else {
+      primaryEntity = null;
+    }
+  }
+
+  // 🔟 Prioritize primary entity first
+  const finalEntities = primaryEntity
+    ? [primaryEntity, ...cleaned.filter(e => e !== primaryEntity && !e.toLowerCase().includes(primaryEntity.toLowerCase()))]
+    : cleaned;
+
+  return {
+    primaryEntity,
+    keyEntities: finalEntities.slice(0, 6)
+  };
 }
 
 export async function generateBlogContent(item: RSSItem): Promise<string> {
   console.log(`[OpenAI] Generating blog for: ${item.title}`);
 
   // Extract key entities from title dynamically
-  let keyEntities = extractEntities(item.title);
+  const { primaryEntity, keyEntities } = extractEntities(item.title);
   const primaryTopic = item.title;
   
   // Fallback: If we have less than 2 entities, add primary topic as context
+  let finalKeyEntities = keyEntities;
   if (keyEntities.length < 2) {
     console.log(`[OpenAI] Warning: Only ${keyEntities.length} entities extracted. Adding primary topic as fallback.`);
-    keyEntities.push(primaryTopic);
+    finalKeyEntities = [...keyEntities, primaryTopic];
   }
   
-  console.log(`[OpenAI] Extracted entities: ${keyEntities.join(', ')}`);
+  console.log(`[OpenAI] Extracted entities: ${finalKeyEntities.join(', ')}`);
+  if (primaryEntity) {
+    console.log(`[OpenAI] Primary entity: ${primaryEntity}`);
+  }
 
   // Fetch the actual article content from the URL (like Make.com does)
   let articleContent = "";
@@ -103,21 +153,25 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
 Your task is to rewrite the provided RSS article into an original, SEO-optimized thought-leadership blog strictly focused on the RSS title.
 
 PRIMARY_TOPIC: "${primaryTopic}"
-KEY_ENTITIES: ${keyEntities.length > 0 ? keyEntities.join(', ') : '[Extract from title]'}
+PRIMARY_ENTITY: "${primaryEntity || primaryTopic}"
+KEY_ENTITIES: ${finalKeyEntities.length > 0 ? finalKeyEntities.join(', ') : '[Extract from title]'}
 
 ENTITY ANCHORING RULES:
 
 1. Before writing the full article, internally generate a structured H2 outline using KEY_ENTITIES. Ensure each H2 includes at least one KEY_ENTITY.
-2. Every H2 heading must contain at least one KEY_ENTITY.
-3. At least 70% of paragraphs must reference a KEY_ENTITY.
-4. The introduction must reference at least two KEY_ENTITIES within the first 120 words.
-5. The article must remain strictly within the scope of PRIMARY_TOPIC.
+2. PRIMARY_ENTITY "${primaryEntity || primaryTopic}" MUST appear in at least 3 H2 headings.
+3. PRIMARY_ENTITY "${primaryEntity || primaryTopic}" MUST appear in the introduction.
+4. At least 70% of paragraphs must reference a KEY_ENTITY.
+5. The introduction must reference at least two KEY_ENTITIES within the first 120 words.
+6. The article must remain strictly within the scope of PRIMARY_TOPIC.
+7. If PRIMARY_ENTITY does not appear in at least 3 H2 headings, rewrite the article before completing.
 
 FORBIDDEN:
 - Generic "AI app development" filler.
 - Generic headings like "Understanding AI", "Benefits of AI App Development".
 - Standalone definition sections unless directly tied to KEY_ENTITIES.
 - Content unrelated to PRIMARY_TOPIC.
+- Headings that don't mention PRIMARY_ENTITY or other KEY_ENTITIES.
 
 SEO REQUIREMENTS:
 - 1200-1600 words.
