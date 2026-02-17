@@ -121,7 +121,7 @@ async function generateArticleOutline(
   // Extract action from title
   const actionMatch = item.title.match(/\b(pilots?|launches?|integrates?|acquires?|tests?|announces?|will be|is|are|out of stock|shortage|crisis)\b/i);
   const titleAction = actionMatch ? actionMatch[1] : 'action';
-  
+
   const response = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     temperature: 0.3, // Lower temperature for more structured output
@@ -258,10 +258,10 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
   }
 
   // STEP 1: Generate outline first
-  const outline = await generateArticleOutline(item, primaryEntity, finalKeyEntities, articleContent);
+  let outline = await generateArticleOutline(item, primaryEntity, finalKeyEntities, articleContent);
   
   // Extract headings from outline
-  const headingMatches = outline.match(/<h2[^>]*>(.+?)<\/h2>/gi) || [];
+  let headingMatches = outline.match(/<h2[^>]*>(.+?)<\/h2>/gi) || [];
   const headings = headingMatches.map(h => h.replace(/<\/?h2[^>]*>/gi, '').trim());
   
   // Validate outline doesn't contain generic AI headings
@@ -308,8 +308,7 @@ Generate 4-6 specific headings about the news story.`,
     const newHeadingMatches = newOutline.match(/<h2[^>]*>(.+?)<\/h2>/gi) || [];
     if (newHeadingMatches.length > 0) {
       outline = newOutline;
-      headingMatches.length = 0;
-      headingMatches.push(...newHeadingMatches);
+      headingMatches = newHeadingMatches;
     }
   }
   
