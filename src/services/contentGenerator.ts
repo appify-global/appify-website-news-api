@@ -353,10 +353,11 @@ Write the final article now. Focus on the TITLE and KEY_ENTITIES, not the RSS co
   
   // Ensure all headings have proper HTML format
   // Fix headings that are ALL CAPS without HTML tags
+  const contentLines = content.split('\n');
   const fixedLines: string[] = [];
   
-  for (let i = 0; i < cleanedLines.length; i++) {
-    const line = cleanedLines[i];
+  for (let i = 0; i < contentLines.length; i++) {
+    const line = contentLines[i];
     const trimmed = line.trim();
     
     // Check if this looks like a heading (ALL CAPS, no HTML/markdown prefix, on its own line)
@@ -367,8 +368,8 @@ Write the final article now. Focus on the TITLE and KEY_ENTITIES, not the RSS co
         !trimmed.match(/^<h[23][^>]*>/) &&
         !trimmed.match(/^##\s+/) &&
         !trimmed.match(/^###\s+/) &&
-        (i === 0 || cleanedLines[i-1].trim() === '') &&
-        (i === cleanedLines.length - 1 || cleanedLines[i+1].trim() === '' || cleanedLines[i+1].trim().match(/^<p|^[A-Z]/i))) {
+        (i === 0 || contentLines[i-1].trim() === '') &&
+        (i === contentLines.length - 1 || contentLines[i+1].trim() === '' || contentLines[i+1].trim().match(/^<p|^[A-Z]/i))) {
       // Convert to HTML heading
       fixedLines.push(`<h2>${trimmed}</h2>`);
     } else {
