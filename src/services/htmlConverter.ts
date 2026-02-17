@@ -51,7 +51,7 @@ Only output valid HTML — no labels, commentary, or non-HTML content.`,
       },
       {
         role: "user",
-        content: `Here is the blog content to convert:\n\n${seoContent}`,
+        content: `Here is the blog content to convert to clean HTML:\n\n${seoContent}\n\nIf the content is already in HTML format, clean it up and ensure proper formatting. If it's in markdown format, convert it to HTML.`,
       },
     ],
   });

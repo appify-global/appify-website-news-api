@@ -197,11 +197,12 @@ SEO REQUIREMENTS:
 - No meta sections or keyword lists.
 
 FORMATTING REQUIREMENTS:
-- Use markdown format: ## for H2 headings, ### for H3 subheadings
-- ALL headings MUST use ## or ### prefix (e.g., "## DEBENHAMS' AGENTIC AI COMMERCE STRATEGY")
-- Do NOT output headings in ALL CAPS without markdown prefix
-- Do NOT output plain text headings - they must have ## or ###
-- Paragraphs should be plain text (no markdown, no prefixes)
+- Output HTML directly: Use <h2> for H2 headings, <h3> for H3 subheadings
+- ALL headings MUST use HTML tags: <h2>Heading Text</h2> or <h3>Subheading Text</h3>
+- Do NOT use markdown (## or ###) - use HTML tags only
+- Do NOT output plain text headings - they must be wrapped in <h2> or <h3> tags
+- Paragraphs should be wrapped in <p> tags: <p>Paragraph text here.</p>
+- Example heading: <h2>DEBENHAMS' AGENTIC AI COMMERCE STRATEGY</h2>
 
 VALIDATION BEFORE COMPLETION:
 Before finishing, verify:
@@ -273,9 +274,13 @@ Write the final article now. Focus on the TITLE and KEY_ENTITIES, not the RSS co
   content = content.replace(/^(I'll|I will|Let me|I'm going to).*?\.\s*/gim, "");
   
   // Remove any text before first heading or paragraph
-  const firstHeading = content.search(/^##\s+/m);
-  const firstParagraph = content.search(/^[A-Z]/m);
-  const startIndex = firstHeading !== -1 ? firstHeading : (firstParagraph !== -1 ? firstParagraph : 0);
+  // Check for HTML headings first, then markdown, then plain text
+  const firstHtmlHeading = content.search(/^<h2[^>]*>/im);
+  const firstMarkdownHeading = content.search(/^##\s+/m);
+  const firstParagraph = content.search(/^<p[^>]*>|^[A-Z]/im);
+  const startIndex = firstHtmlHeading !== -1 ? firstHtmlHeading : 
+                     (firstMarkdownHeading !== -1 ? firstMarkdownHeading : 
+                      (firstParagraph !== -1 ? firstParagraph : 0));
   if (startIndex > 0) {
     content = content.substring(startIndex);
   }
@@ -324,9 +329,13 @@ Write the final article now. Focus on the TITLE and KEY_ENTITIES, not the RSS co
   const cleanedLines: string[] = [];
   
   for (const line of lines) {
-    const headingMatch = line.match(/^##\s+(.+)$/);
-    if (headingMatch) {
-      const headingText = headingMatch[1].trim().toLowerCase();
+    // Check for HTML headings
+    const htmlHeadingMatch = line.match(/^<h2[^>]*>(.+?)<\/h2>/i);
+    // Check for markdown headings (fallback)
+    const markdownHeadingMatch = line.match(/^##\s+(.+)$/);
+    
+    if (htmlHeadingMatch || markdownHeadingMatch) {
+      const headingText = (htmlHeadingMatch ? htmlHeadingMatch[1] : markdownHeadingMatch![1]).trim().toLowerCase();
       if (seenHeadings.has(headingText)) {
         // Skip duplicate heading and its content until next heading
         continue;
@@ -340,27 +349,28 @@ Write the final article now. Focus on the TITLE and KEY_ENTITIES, not the RSS co
   
   // Remove any "Conclusion" sections (we don't want conclusion sections)
   content = content.replace(/\n##\s+Conclusion\s*\n[\s\S]*$/gim, "");
+  content = content.replace(/<h2[^>]*>\s*Conclusion\s*<\/h2>[\s\S]*$/gim, "");
   
-  // Ensure all headings have proper markdown format
-  // Fix headings that are ALL CAPS without ## prefix
-  const lines = content.split('\n');
+  // Ensure all headings have proper HTML format
+  // Fix headings that are ALL CAPS without HTML tags
   const fixedLines: string[] = [];
   
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (let i = 0; i < cleanedLines.length; i++) {
+    const line = cleanedLines[i];
     const trimmed = line.trim();
     
-    // Check if this looks like a heading (ALL CAPS, no ## prefix, on its own line)
+    // Check if this looks like a heading (ALL CAPS, no HTML/markdown prefix, on its own line)
     if (trimmed && 
         trimmed === trimmed.toUpperCase() && 
         trimmed.length > 10 && 
         trimmed.length < 100 &&
+        !trimmed.match(/^<h[23][^>]*>/) &&
         !trimmed.match(/^##\s+/) &&
         !trimmed.match(/^###\s+/) &&
-        (i === 0 || lines[i-1].trim() === '') &&
-        (i === lines.length - 1 || lines[i+1].trim() === '' || lines[i+1].trim().match(/^[A-Z]/))) {
-      // Convert to markdown heading
-      fixedLines.push(`## ${trimmed}`);
+        (i === 0 || cleanedLines[i-1].trim() === '') &&
+        (i === cleanedLines.length - 1 || cleanedLines[i+1].trim() === '' || cleanedLines[i+1].trim().match(/^<p|^[A-Z]/i))) {
+      // Convert to HTML heading
+      fixedLines.push(`<h2>${trimmed}</h2>`);
     } else {
       fixedLines.push(line);
     }
