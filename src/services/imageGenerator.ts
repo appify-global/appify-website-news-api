@@ -67,8 +67,14 @@ CRITICAL RULES:
    CRITICAL: Think about the ACTION in the title (cut costs, identify, lead, pilot, etc.) and create a visual that represents that specific action using conceptual metaphors, NOT generic domain imagery like dashboards or screens.
 4. **Avoid generic AI imagery** (brains, neural networks) unless the article is specifically about neural networks or brain-like AI
 5. Focus on concrete visual elements (objects, scenes, concepts) that match the heading - not abstract ideas
-6. **STRICT VISUAL STYLE** - All images must use this EXACT foundation:
-   Flat 2D vector graphic composition. Use simplified geometric shapes only. No 3D rendering. No isometric perspective. No depth-of-field. No realistic lighting. No volumetric shading. No photorealistic objects. No cinematic glow effects. No textured surfaces. Design should resemble a modern tech editorial magazine cover graphic. Clean, bold, minimal, symbolic. Orthographic front-facing view only.
+5a. **VISUAL MODE SELECTION** - Choose ONE of the following based on the title:
+   MODE A (EDITORIAL VECTOR): conceptual metaphor illustration, bold shapes, no UI realism. Use for abstract research topics, cyber, geopolitics, culture/behavior, healthcare, anything that benefits from metaphor illustration.
+   MODE B (PRODUCT UI HERO MOCKUP): clean SaaS landing-page hero mockup with abstract UI cards and interface elements, not a real screenshot. Use when the title is about a product, platform, API, studio, dashboard, console, tool, model release, SDK, "launches a platform", "introduces a product", "new model release", "developer tools", "interactions API", "MaaS", "console", "dashboard", "studio", "workspace".
+   MODE B MUST be original and generic: no logos, no brand names, no readable text.
+6. **STRICT VISUAL STYLE** - Apply based on selected MODE:
+   MODE A (EDITORIAL VECTOR): Flat 2D vector graphic composition. Use simplified geometric shapes only. No 3D rendering. No isometric perspective. No depth-of-field. No realistic lighting. No volumetric shading. No photorealistic objects. No cinematic glow effects. No textured surfaces. Design should resemble a modern tech editorial magazine cover graphic. Clean, bold, minimal, symbolic. Orthographic front-facing view only.
+   
+   MODE B (PRODUCT UI HERO MOCKUP): Website hero section mockup, modern SaaS product design, rounded UI cards, minimal charts and interface widgets, soft gradients, subtle shadows, clean layout, no humans, no logos, no readable text. Flat/clean, high polish, 2D UI design, not 3D render. Abstract UI components (charts, buttons, tiles). Not a real screenshot - original UI design.
 6a. **DEVICES ARE ALLOWED** - You may include devices (smartphones, tablets, laptops, computers, monitors) but they MUST be:
    - Flat 2D vector illustrations with simplified geometric shapes
    - Clean rectangular shapes with rounded corners (not photorealistic)
@@ -110,6 +116,13 @@ CRITICAL RULES:
 
 CRITICAL: The image must represent what the article heading describes. Extract the exact visual concept from the heading.
 
+STEP 0: CHOOSE VISUAL MODE
+Pick ONE mode based on the article title:
+- MODE A (EDITORIAL VECTOR): Use for abstract research topics, cyber, geopolitics, culture/behavior, healthcare, conceptual topics
+- MODE B (PRODUCT UI HERO MOCKUP): Use when title mentions: platforms, APIs, SDKs, "launches a platform", "introduces a product", "new model release", "developer tools", "interactions API", "MaaS", "console", "dashboard", "studio", "workspace", product launches, tool releases
+
+Output format: Start your response with "MODE: A" or "MODE: B" on its own line, then provide the image prompt.
+
 STEP 1: DETECT THE DOMAIN from the article title/description:
 - If title mentions "publisher", "news", "media", "editorial", "journalism" → Media/Publishing domain
 - If title mentions "finance", "banking", "payment", "accounting", "ROI", "accounts payable" → Finance/Banking domain
@@ -133,24 +146,26 @@ STEP 2: APPLY DOMAIN-SPECIFIC VISUAL CONCEPTS (all flat 2D vector graphic style)
 - Automation/Workflow → workflow diagrams, process flows, automation concepts, devices showing automation interfaces (flat 2D vector, clean outlines)
 - Default → technology concepts, innovation symbols, digital transformation metaphors, devices when relevant (flat 2D vector, simplified geometric shapes)
 
-STRICT VISUAL STYLE (applies to ALL domains - MANDATORY):
-Flat 2D vector graphic composition. Use simplified geometric shapes only. No 3D rendering. No isometric perspective. No depth-of-field. No realistic lighting. No volumetric shading. No photorealistic objects. No cinematic glow effects. No textured surfaces. Design should resemble a modern tech editorial magazine cover graphic. Clean, bold, minimal, symbolic. Orthographic front-facing view only.
+STRICT VISUAL STYLE (applies based on selected MODE):
+MODE A (EDITORIAL VECTOR): Flat 2D vector graphic composition. Use simplified geometric shapes only. No 3D rendering. No isometric perspective. No depth-of-field. No realistic lighting. No volumetric shading. No photorealistic objects. No cinematic glow effects. No textured surfaces. Design should resemble a modern tech editorial magazine cover graphic. Clean, bold, minimal, symbolic. Orthographic front-facing view only.
+
+MODE B (PRODUCT UI HERO MOCKUP): Website hero section mockup, modern SaaS product design, rounded UI cards, minimal charts and interface widgets, soft gradients, subtle shadows, clean layout, no humans, no logos, no readable text. Flat/clean, high polish, 2D UI design, not 3D render. Abstract UI components (charts, buttons, tiles). Not a real screenshot - original UI design.
 
 COLOR REQUIREMENT: Use diverse, topic-appropriate color palettes. Do NOT default to blue for all images. Vary colors between articles - use greens, purples, oranges, reds, golds, teals, or other colors that match the topic's mood and industry. Only use blue when it's specifically appropriate for the domain (e.g., ocean/water themes, specific brand colors). Finance can use green/gold, Gaming can use vibrant reds/oranges, Healthcare can use soft greens, AI research can use purple/orange/green combinations, etc.
 
 CRITICAL: NO HUMANS, BUT DEVICES ALLOWED - Do not show people, faces, or human figures. Devices (smartphones, tablets, laptops, computers, monitors) are allowed but must be flat 2D vector illustrations with simplified geometric shapes, not photorealistic. Focus on objects, environments, technology, data visualizations, interfaces, workflows, or abstract concepts.
 
-All visuals must be flat 2D vector graphic compositions using simplified geometric shapes only. No 3D rendering, no isometric perspective, no depth-of-field, no realistic lighting, no volumetric shading, no photorealistic objects, no cinematic glow effects, no textured surfaces. Design should resemble a modern tech editorial magazine cover graphic: clean, bold, minimal, symbolic. Orthographic front-facing view only.
-
 Article Context:
 ${context}
 
 Generate a visual prompt that:
-1. Detects the domain from the title/description
-2. Applies domain-specific visual concepts using clear conceptual metaphors - all flat 2D vector graphic style, NOT realistic dashboards, screens, or business scenes
-3. Uses the STRICT VISUAL STYLE: Flat 2D vector graphic composition. Use simplified geometric shapes only. No 3D rendering. No isometric perspective. No depth-of-field. No realistic lighting. No volumetric shading. No photorealistic objects. No cinematic glow effects. No textured surfaces. Design should resemble a modern tech editorial magazine cover graphic. Clean, bold, minimal, symbolic. Orthographic front-facing view only.
-4. Uses diverse, topic-appropriate colors - do NOT default to blue. Vary colors: greens, purples, oranges, reds, golds, teals, or other colors matching the topic's mood
-5. Shows NO humans, people, or faces - devices (smartphones, tablets, laptops) are allowed but must be flat 2D vector illustrations with simplified geometric shapes, not photorealistic. Focus on objects, environments, technology, data visualizations, interfaces, workflows, or abstract concepts`,
+0. First selects MODE A or MODE B based on the title
+1. Outputs "MODE: A" or "MODE: B" on the first line
+2. Then provides the image prompt following the selected mode's style guidelines
+3. Detects the domain from the title/description
+4. Applies domain-specific visual concepts using the selected mode's style
+5. Uses diverse, topic-appropriate colors - do NOT default to blue. Vary colors: greens, purples, oranges, reds, golds, teals, or other colors matching the topic's mood
+6. Shows NO humans, people, or faces`,
         },
       ],
     });
@@ -160,12 +175,23 @@ Generate a visual prompt that:
       throw new Error("OpenAI returned empty prompt");
     }
 
+    // Extract mode if present
+    let mode = "A"; // default
+    let cleanPrompt = prompt;
+    if (prompt.startsWith("MODE:")) {
+      const lines = prompt.split('\n');
+      const modeLine = lines[0];
+      mode = modeLine.includes("B") ? "B" : "A";
+      cleanPrompt = lines.slice(1).join('\n').trim();
+    }
+
     // Clean up the prompt (remove quotes, labels, etc.)
-    const cleanPrompt = prompt
+    cleanPrompt = cleanPrompt
       .replace(/^["']|["']$/g, "")
       .replace(/^(prompt|image|description):\s*/i, "")
       .trim();
 
+    console.log(`[ImagePrompt] Selected MODE: ${mode === "B" ? "PRODUCT UI HERO MOCKUP" : "EDITORIAL VECTOR"}`);
     console.log(`[ImagePrompt] Generated prompt: ${cleanPrompt.substring(0, 100)}...`);
     return cleanPrompt;
   } catch (error: any) {
