@@ -64,7 +64,7 @@ export async function generateArticles(): Promise<void> {
       if (!imageUrl) {
         console.log("[Pipeline] No RSS image found, generating with Grok-2-Image...");
         try {
-          imageUrl = await generateImage(blogTitle, seoResult.topics);
+          imageUrl = await generateImage(blogTitle, seoResult.topics, metaDescription);
           console.log("[Pipeline] Image generated successfully with Grok-2-Image");
         } catch (imgError) {
           console.error("[Pipeline] Image generation failed, using placeholder:", imgError);

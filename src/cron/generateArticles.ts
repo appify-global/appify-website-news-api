@@ -612,7 +612,7 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
             // Only fall back to Grok if we absolutely can't use the source image
             console.error(`[Pipeline] Source image URL is invalid, falling back to Grok generation as last resort`);
             try {
-              imageUrl = await generateImage(blogTitle, seoResult.topics);
+              imageUrl = await generateImage(blogTitle, seoResult.topics, metaDescription);
               console.log(`[Pipeline] Image generated with Grok-2-Image (source image unavailable)`);
             } catch (imgError) {
               console.error(`[Pipeline] Grok image generation also failed, using placeholder:`, imgError);
@@ -626,7 +626,7 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
         console.log(`[Pipeline] Generating with Grok-2-Image as last resort...`);
         try {
           // generateImage already uploads to Railbucket and returns Railbucket URL
-          imageUrl = await generateImage(blogTitle, seoResult.topics);
+          imageUrl = await generateImage(blogTitle, seoResult.topics, metaDescription);
           console.log(`[Pipeline] ✅ Image generated with Grok-2-Image and uploaded to Railbucket`);
         } catch (imgError) {
           console.error(`[Pipeline] Grok image generation failed, using placeholder:`, imgError);
