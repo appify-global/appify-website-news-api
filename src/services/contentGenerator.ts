@@ -100,33 +100,28 @@ Title: ${item.title}
 URL: ${item.link || 'N/A'}
 Content: ${articleContent.slice(0, 5000) || item.contentSnippet || item.content || 'No content available'}
 
-🚨🚨🚨 ABSOLUTELY CRITICAL - READ CAREFULLY 🚨🚨🚨
+🚨 CRITICAL: Write a blog post about "${item.title}". 
 
-The RSS title is: "${item.title}"
+YOU MUST WRITE ABOUT THE EXACT TOPIC IN THE TITLE - not generic content.
 
-YOU MUST WRITE ABOUT THIS EXACT TOPIC. DO NOT WRITE GENERIC CONTENT.
+**TOPIC-SPECIFIC REQUIREMENTS:**
+- Extract the specific topic, company, event, or subject from "${item.title}"
+- If the title mentions a specific company (e.g., "NatWest", "OpenAI", "Google"), write about that company's specific situation
+- If the title mentions a specific event (e.g., "data breach", "merger", "launch"), write about that specific event
+- If the title mentions a specific technology/product (e.g., "AI video generator", "gaming mouse"), write about that specific technology/product
+- Create headings that match the specific topic in "${item.title}" - NOT generic headings
+- Every paragraph must be about the specific topic in "${item.title}"
 
-${item.title.includes('NatWest') ? `
-⚠️⚠️⚠️ THIS ARTICLE IS ABOUT NATWEST ⚠️⚠️⚠️
+**HEADING EXAMPLES:**
+- If title is "Banking AI at NatWest" → Use "NatWest's Banking AI Strategy" (NOT "What is AI App Development?")
+- If title is "Data breach at Company X" → Use "Understanding the Data Breach at Company X" (NOT "Benefits of AI")
+- If title is "New AI Video Generator" → Use "How the New AI Video Generator Works" (NOT "What is AI App Development?")
+- If title is generic "AI App Development" → Then use generic headings
 
-YOU MUST:
-1. Write about NATWEST specifically - mention "NatWest" throughout the article
-2. Use headings like:
-   - "NatWest's AI Implementation Strategy in Banking" (NOT "What is AI App Development?")
-   - "How NatWest is Using AI Across Business Functions" (NOT "Benefits of AI App Development")
-   - "NatWest's Banking Functions Enhanced by AI" (NOT "Practical Implementation")
-   - "The Impact of AI on NatWest's Operations" (NOT "Conclusion")
-3. Every paragraph must mention NatWest or discuss NatWest's specific implementation
-4. DO NOT write generic "AI App Development" content - this is about NATWEST specifically
-5. Focus on NatWest's banking functions, NatWest's AI strategy, NatWest's implementation
-
-IF YOU WRITE GENERIC "AI APP DEVELOPMENT" CONTENT, YOU HAVE FAILED. THIS MUST BE ABOUT NATWEST.
-` : ''}
-
-${item.title.includes('NatWest') ? '' : `
-- If "${item.title}" is about a data breach → Write about that specific data breach
-- If "${item.title}" is about a company announcement → Write about that specific announcement
-`}
+**DO NOT:**
+- Write generic "AI App Development" content unless the title is specifically about generic AI app development
+- Use generic headings like "What is AI App Development?" unless the title is about generic AI app development
+- Write about topics not mentioned in "${item.title}"
 
 Use the article content above as context to understand what "${item.title}" is about, then write original, insightful content about that specific topic.
 
