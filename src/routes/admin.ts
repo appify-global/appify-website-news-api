@@ -9,6 +9,8 @@ import { migrateImagesToRailbucket } from "../scripts/migrateImagesToRailbucket"
 import { getSignedImageUrl, extractFilenameFromUrl, deleteImageFromRailbucket } from "../services/railbucket";
 import { generateImage } from "../services/imageGenerator";
 import { generateExcerpt } from "../services/excerptGenerator";
+import { generateBlogTitle } from "../services/titleGenerator";
+import { generateMetaDescription } from "../services/metaDescriptionGenerator";
 import { prisma } from "../lib/prisma";
 
 export const adminRouter = Router();
