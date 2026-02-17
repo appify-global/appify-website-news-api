@@ -264,10 +264,60 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
   const headingMatches = outline.match(/<h2[^>]*>(.+?)<\/h2>/gi) || [];
   const headings = headingMatches.map(h => h.replace(/<\/?h2[^>]*>/gi, '').trim());
   
-  if (headings.length === 0) {
+  // Validate outline doesn't contain generic AI headings
+  const genericPatterns = ['ai app development', 'understanding ai', 'benefits of ai', 'future of ai in app'];
+  const hasGenericHeadings = headings.some(h => 
+    genericPatterns.some(pattern => h.toLowerCase().includes(pattern))
+  );
+  
+  if (hasGenericHeadings) {
+    console.warn(`[OpenAI] Outline contains generic AI headings! Regenerating outline...`);
+    // Regenerate outline with stronger enforcement
+    const retryOutline = await getOpenAI().chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.2,
+      max_tokens: 500,
+      messages: [
+        {
+          role: "system",
+          content: `CRITICAL: The previous outline was rejected for containing generic AI headings.
+
+You MUST create headings about the SPECIFIC NEWS STORY: "${primaryTopic}"
+
+PRIMARY_ENTITY: "${primaryEntity || primaryTopic}"
+KEY_ENTITIES: ${finalKeyEntities.join(', ')}
+
+FORBIDDEN HEADINGS:
+- "AI App Development"
+- "Understanding AI"
+- "Benefits of AI"
+- "The Future of AI in App Development"
+- Any generic AI topic
+
+REQUIRED: Headings must be about "${primaryEntity || 'the company'}" and the specific news story.
+
+Generate 4-6 specific headings about the news story.`,
+        },
+        {
+          role: "user",
+          content: `Title: ${item.title}\n\nGenerate specific headings about this news story, NOT generic AI topics.`,
+        },
+      ],
+    });
+    const newOutline = retryOutline.choices[0]?.message?.content || outline;
+    const newHeadingMatches = newOutline.match(/<h2[^>]*>(.+?)<\/h2>/gi) || [];
+    if (newHeadingMatches.length > 0) {
+      outline = newOutline;
+      headingMatches.length = 0;
+      headingMatches.push(...newHeadingMatches);
+    }
+  }
+  
+  if (headingMatches.length === 0) {
     console.warn(`[OpenAI] No headings found in outline, falling back to direct generation`);
   } else {
-    console.log(`[OpenAI] Using outline with ${headings.length} headings: ${headings.slice(0, 3).join(', ')}...`);
+    const finalHeadings = headingMatches.map(h => h.replace(/<\/?h2[^>]*>/gi, '').trim());
+    console.log(`[OpenAI] Using outline with ${finalHeadings.length} headings: ${finalHeadings.slice(0, 3).join(', ')}...`);
   }
 
   // STEP 2: Write the full article following the outline
@@ -278,38 +328,41 @@ export async function generateBlogContent(item: RSSItem): Promise<string> {
     messages: [
       {
         role: "system",
-        content: `You are a senior technology industry analyst writing for Appify Australia.
+        content: `You are a technology news writer for Appify Australia.
 
-Your task is to write an article following the EXACT outline provided below.
+CRITICAL: This article is about a SPECIFIC NEWS STORY, NOT general AI topics.
 
 RSS TITLE: "${primaryTopic}"
 PRIMARY_ENTITY: "${primaryEntity || primaryTopic}"
 KEY_ENTITIES: ${finalKeyEntities.join(', ')}
 
-CRITICAL INSTRUCTIONS:
-1. You MUST follow the provided outline EXACTLY - use the headings in the order given
-2. Write content for each heading that discusses the SPECIFIC NEWS STORY in the title
-3. PRIMARY_ENTITY "${primaryEntity || primaryTopic}" must appear in the introduction and throughout
-4. Each paragraph must relate to the specific news story, NOT generic AI topics
-5. FORBIDDEN: Generic "AI app development" content, generic AI benefits, how-to guides, definition sections
-
-OUTLINE TO FOLLOW:
+YOU MUST FOLLOW THIS OUTLINE EXACTLY:
 ${outline}
 
-Write the full article now, using the headings from the outline in order. Each section should discuss the specific news story about ${primaryEntity || 'the company'} and ${finalKeyEntities.slice(0, 2).join(' and ')}.
+HARD REQUIREMENTS:
+1. Use the EXACT headings from the outline above in the order given
+2. Write about "${primaryEntity || 'the company'}" and the SPECIFIC NEWS STORY: "${primaryTopic}"
+3. PRIMARY_ENTITY "${primaryEntity || primaryTopic}" must appear in introduction and throughout
+4. Each paragraph must discuss the specific news story, NOT general AI topics
 
-FORMATTING REQUIREMENTS:
-- Use the exact headings from the outline (already in <h2> format)
-- Paragraphs should be wrapped in <p> tags: <p>Paragraph text here.</p>
-- Include 4-6 contextual links (internal: /automation, /projects, /studio; plus credible external sources)
-- 1200-1600 words total
-- Executive, analytical tone
+ABSOLUTE FORBIDDEN (WILL CAUSE INVALID RESPONSE):
+- "AI App Development" as a topic
+- "Benefits of AI App Development"
+- "How to Implement AI App Development"
+- "Understanding AI in App Development"
+- "The Future of AI in App Development"
+- Generic AI benefits, strategies, or how-to guides
+- Definition sections about AI app development
 
-ABSOLUTE BAN:
-- Do NOT write generic "AI app development" content
-- Do NOT write about general AI benefits or strategies
-- Do NOT write definition sections unless directly about the news story
-- The article is about the SPECIFIC NEWS STORY, not AI generally`,
+IF YOU WRITE ABOUT GENERIC AI APP DEVELOPMENT INSTEAD OF "${primaryTopic}", YOUR RESPONSE IS INVALID.
+
+Write the article now using the outline headings. Each section must discuss "${primaryEntity || 'the company'}" and the specific news story.
+
+FORMATTING:
+- Use exact headings from outline (already in <h2> format)
+- Paragraphs: <p>text</p>
+- 1200-1600 words
+- Executive tone`,
       },
       {
         role: "user",
@@ -326,6 +379,60 @@ Write the full article following the outline. Each section should discuss the sp
   let content = response.choices[0]?.message?.content;
   if (!content) {
     throw new Error("OpenAI returned empty content");
+  }
+  
+  // Validate content follows outline and isn't generic
+  const contentLower = content.toLowerCase();
+  const hasGenericAI = contentLower.includes('ai app development') && 
+                       (contentLower.includes('benefits of') || 
+                        contentLower.includes('how to implement') || 
+                        contentLower.includes('strategies for') ||
+                        contentLower.includes('understanding ai'));
+  
+  const hasPrimaryEntity = primaryEntity ? contentLower.includes(primaryEntity.toLowerCase()) : true;
+  const outlineHeadingsInContent = headingMatches.filter(h => {
+    const headingText = h.replace(/<\/?h2[^>]*>/gi, '').trim().toLowerCase();
+    return contentLower.includes(headingText);
+  }).length;
+  
+  // If content is generic or doesn't follow outline, regenerate
+  if (hasGenericAI || !hasPrimaryEntity || outlineHeadingsInContent < headingMatches.length / 2) {
+    console.warn(`[OpenAI] Content validation failed. Generic AI: ${hasGenericAI}, Has Entity: ${hasPrimaryEntity}, Outline Match: ${outlineHeadingsInContent}/${headingMatches.length}. Regenerating...`);
+    
+    // Regenerate with even stronger enforcement
+    const retryResponse = await getOpenAI().chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.3,
+      max_tokens: 2500,
+      messages: [
+        {
+          role: "system",
+          content: `CRITICAL: The previous article was rejected for being generic or not following the outline.
+
+You MUST write about the SPECIFIC NEWS STORY: "${primaryTopic}"
+
+PRIMARY_ENTITY: "${primaryEntity || primaryTopic}"
+OUTLINE TO FOLLOW:
+${outline}
+
+ABSOLUTE REQUIREMENTS:
+1. Use EXACTLY the headings from the outline above
+2. Write about "${primaryEntity || 'the company'}" and the specific news story
+3. FORBIDDEN: "AI App Development", "Benefits of AI", "How to Implement AI", generic AI content
+4. The article is about "${primaryTopic}", NOT general AI topics
+
+If you write generic AI content, your response is INVALID.`,
+        },
+        {
+          role: "user",
+          content: `Title: ${item.title}
+
+Write the article using the outline headings. Write about "${primaryEntity || 'the company'}" and the specific news story, NOT generic AI topics.`,
+        },
+      ],
+    });
+    
+    content = retryResponse.choices[0]?.message?.content || content;
   }
 
   // Clean up any AI explanations or markdown code blocks
