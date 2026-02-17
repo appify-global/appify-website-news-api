@@ -48,8 +48,13 @@ function extractEntities(title: string): string[] {
   
   // Remove duplicates and common words
   const commonWords = ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'be', 'can', 'via', 'with', 'in', 'at'];
+  
+  // Filter out stopword capitals (Can, Will, How, Why, etc.)
+  const stopCaps = ['Can', 'Will', 'How', 'Why', 'When', 'What', 'Where', 'Who', 'Which', 'This', 'That', 'These', 'Those', 'The', 'A', 'An'];
+  
   return [...new Set(entities)]
     .filter(e => !commonWords.includes(e.toLowerCase()))
+    .filter(e => !stopCaps.includes(e))
     .filter(e => e.length > 1)
     .slice(0, 6); // Limit to top 6 entities
 }
