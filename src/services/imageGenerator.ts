@@ -292,13 +292,13 @@ export async function generateImage(title: string, topic: string, description?: 
   const prompt = await generateImagePrompt(title, description, topic);
 
   try {
-    console.log(`[Grok] Calling API with model: grok-2-image`);
+    console.log(`[Grok] Calling API with model: grok-imagine-image`);
     console.log(`[Grok] Prompt: ${prompt.substring(0, 100)}...`);
     console.log(`[Grok] Base URL: https://api.x.ai/v1`);
     console.log(`[Grok] Endpoint: /images/generations`);
     
     const response = await getXAI().images.generate({
-      model: "grok-2-image",
+      model: "grok-imagine-image",
       prompt: prompt,
       n: 1,
       // Note: aspect_ratio parameter not supported in current OpenAI SDK types
@@ -371,7 +371,7 @@ export async function generateImage(title: string, topic: string, description?: 
       throw new Error("Grok API requires payment/subscription. Check your xAI account billing.");
     }
     if (errorStr.includes("404") || error.message?.includes("404")) {
-      throw new Error("Grok API endpoint not found. Model 'grok-2-image' may not be available or API endpoint changed.");
+      throw new Error("Grok API endpoint not found. Model 'grok-imagine-image' may not be available or API endpoint changed.");
     }
     if (errorStr.includes("429") || error.message?.includes("429")) {
       throw new Error("Grok API rate limit exceeded. Please wait and try again.");

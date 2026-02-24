@@ -58,14 +58,14 @@ export async function generateArticles(): Promise<void> {
         excerpt = excerpt.slice(0, 497) + "...";
       }
 
-      // Step 8: Get image - use RSS image first, then generate with Grok-2-Image
+      // Step 8: Get image - use RSS image first, then generate with Grok-Imagine-Image
       let imageUrl = item.imageUrl || item.enclosure?.url || "";
       
       if (!imageUrl) {
-        console.log("[Pipeline] No RSS image found, generating with Grok-2-Image...");
+        console.log("[Pipeline] No RSS image found, generating with Grok-Imagine-Image...");
         try {
           imageUrl = await generateImage(blogTitle, seoResult.topics, metaDescription);
-          console.log("[Pipeline] Image generated successfully with Grok-2-Image");
+          console.log("[Pipeline] Image generated successfully with Grok-Imagine-Image");
         } catch (imgError) {
           console.error("[Pipeline] Image generation failed, using placeholder:", imgError);
           imageUrl = "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80";

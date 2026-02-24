@@ -628,9 +628,9 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
       
       // Step 1: Try Grok generation first
       try {
-        console.log(`[Pipeline] 🎨 Generating image with Grok-2-Image...`);
+        console.log(`[Pipeline] 🎨 Generating image with Grok-Imagine-Image...`);
         imageUrl = await generateImage(blogTitle, topics, metaDescription);
-        console.log(`[Pipeline] ✅ Image generated with Grok-2-Image and uploaded to Railbucket`);
+        console.log(`[Pipeline] ✅ Image generated with Grok-Imagine-Image and uploaded to Railbucket`);
       } catch (grokError: any) {
         console.warn(`[Pipeline] ⚠️  Grok image generation failed: ${grokError.message}`);
         console.log(`[Pipeline] Falling back to source images...`);
