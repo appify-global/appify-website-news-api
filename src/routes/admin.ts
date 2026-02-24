@@ -64,6 +64,101 @@ adminRouter.post("/publish-all", async (_req, res) => {
   }
 });
 
+// POST /api/admin/unpublish-articles - Unpublish specific articles
+adminRouter.post("/unpublish-articles", async (req, res) => {
+  try {
+    const { articleTitles } = req.body;
+    
+    if (!articleTitles || !Array.isArray(articleTitles) || articleTitles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Please provide an array of article titles in the 'articleTitles' field",
+      });
+    }
+
+    console.log(`[ADMIN] Unpublishing ${articleTitles.length} articles...`);
+    
+    const results = [];
+    
+    for (const searchTitle of articleTitles) {
+      try {
+        // Find the article (case-insensitive partial match)
+        const article = await prisma.article.findFirst({
+          where: {
+            title: {
+              contains: searchTitle,
+              mode: 'insensitive'
+            }
+          },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            status: true,
+          },
+        });
+
+        if (!article) {
+          results.push({
+            title: searchTitle,
+            success: false,
+            error: "Article not found",
+          });
+          continue;
+        }
+
+        if (article.status !== "published") {
+          results.push({
+            title: article.title,
+            success: false,
+            error: `Article is not published (current status: ${article.status})`,
+          });
+          continue;
+        }
+
+        console.log(`[ADMIN] Unpublishing: ${article.title}`);
+
+        // Update article status to pending_review
+        await prisma.article.update({
+          where: { id: article.id },
+          data: { status: "pending_review" },
+        });
+
+        results.push({
+          title: article.title,
+          slug: article.slug,
+          success: true,
+          newStatus: "pending_review",
+        });
+
+        console.log(`[ADMIN] ✅ Unpublished: ${article.title}`);
+        
+      } catch (error: any) {
+        console.error(`[ADMIN] Error processing "${searchTitle}":`, error);
+        results.push({
+          title: searchTitle,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    
+    res.json({
+      success: true,
+      message: `Unpublished ${successCount} articles, ${articleTitles.length - successCount} failed`,
+      results: results,
+    });
+  } catch (error: any) {
+    console.error("[ADMIN] Error unpublishing articles:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 // DELETE /api/admin/delete-recent - Delete recently created articles (last N articles or last X hours)
 adminRouter.delete("/delete-recent", async (req, res) => {
   try {
