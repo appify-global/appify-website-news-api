@@ -488,21 +488,7 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
         }
       }
       
-      // Use source article page image if found, otherwise keep RSS image
-      if (articlePageImageUrl) {
-        item.imageUrl = articlePageImageUrl;
-      } else if (item.imageUrl) {
-        console.log(`[Pipeline] ✅ Using image from RSS feed: ${item.imageUrl.substring(0, 80)}...`);
-      }
-
-      // Step 3: Generate blog content (OpenAI or Code)
-      console.log(`[Pipeline] Generating content using: ${USE_CODE_GENERATION ? 'CODE-BASED' : 'OpenAI'} mode`);
-      const rawBlog = await generateBlogContent(item);
-      console.log(`[Pipeline] Content generated, length: ${rawBlog.length} characters`);
-
-      // Step 3: Extract topics from RSS item (don't rewrite content)
-      // Simple topic detection from title/content - no content rewriting
-      let topics = "AI"; // Default fallback
+      // Extract topics from RSS item for image generation (needed before content generation)
       const titleLower = (item.title || "").toLowerCase();
       const contentLower = ((item.contentSnippet || item.content || "")).toLowerCase();
       
@@ -526,8 +512,46 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
         topicMatches.push("Design");
       }
       
-      topics = topicMatches.length > 0 ? topicMatches.join(", ") : "AI";
+      let topics = topicMatches.length > 0 ? topicMatches.join(", ") : "AI";
       console.log(`[Pipeline] Extracted topics: ${topics}`);
+
+      // Step 2.5: ALWAYS try Grok first BEFORE generating article content
+      // Source images are only used as fallback if Grok fails
+      let imageUrl = "";
+      let grokFailed = false;
+      
+      console.log(`[Pipeline] 🎨 Attempting Grok image generation with RSS data...`);
+      try {
+        const rssDescription = item.contentSnippet || item.content || "";
+        imageUrl = await generateImage(item.title, topics, rssDescription.slice(0, 500));
+        console.log(`[Pipeline] ✅ Image generated with Grok-Imagine-Image using RSS data`);
+      } catch (grokError: any) {
+        grokFailed = true;
+        console.warn(`[Pipeline] ⚠️  Grok image generation failed: ${grokError.message}`);
+        console.log(`[Pipeline] Falling back to source images...`);
+        
+        // Fallback to source images if Grok fails
+        const hasSourceImage = !!(articlePageImageUrl || item.imageUrl || item.enclosure?.url);
+        
+        if (hasSourceImage) {
+          imageUrl = articlePageImageUrl || item.imageUrl || item.enclosure?.url || "";
+          if (articlePageImageUrl) {
+            item.imageUrl = articlePageImageUrl;
+            console.log(`[Pipeline] ✅ Using source image from article page as fallback`);
+          } else if (item.imageUrl) {
+            console.log(`[Pipeline] ✅ Using source image from RSS feed as fallback: ${item.imageUrl.substring(0, 80)}...`);
+          }
+        } else {
+          // No source image available either - throw error
+          console.error(`[Pipeline] ❌ Grok generation failed and no source image available. Skipping article: "${item.title}"`);
+          throw new Error(`Cannot generate article: Grok generation failed and no source image available. Article: "${item.title}". Grok error: ${grokError.message}`);
+        }
+      }
+
+      // Step 3: Generate blog content (ONLY if we have an image - source or Grok)
+      console.log(`[Pipeline] Generating content using: ${USE_CODE_GENERATION ? 'CODE-BASED' : 'OpenAI'} mode`);
+      const rawBlog = await generateBlogContent(item);
+      console.log(`[Pipeline] Content generated, length: ${rawBlog.length} characters`);
 
       // Step 4: Use content directly (already in HTML format with outline headings)
       // Only do minimal HTML cleanup, don't rewrite
@@ -619,53 +643,35 @@ export async function generateArticles(fetchAllOverride?: boolean): Promise<void
         excerpt = metaDescription.slice(0, 250);
       }
 
-      // Step 8: Get image - Prioritize Grok generation first, then fallback to source images
-      // Priority order: 1) Grok generation, 2) Source article page image, 3) RSS feed image, 4) Placeholder
-      // All images are uploaded to Railbucket for consistent storage
-      let imageUrl = "";
-      
-      console.log(`[Pipeline] Image selection: Prioritizing Grok generation first...`);
-      
-      // Step 1: Try Grok generation first
-      try {
-        console.log(`[Pipeline] 🎨 Generating image with Grok-Imagine-Image...`);
-        imageUrl = await generateImage(blogTitle, topics, metaDescription);
-        console.log(`[Pipeline] ✅ Image generated with Grok-Imagine-Image and uploaded to Railbucket`);
-      } catch (grokError: any) {
-        console.warn(`[Pipeline] ⚠️  Grok image generation failed: ${grokError.message}`);
-        console.log(`[Pipeline] Falling back to source images...`);
-        
-        // Step 2: Fallback to source article page image (extracted in Step 2)
-        let sourceImageUrl = articlePageImageUrl || item.imageUrl || item.enclosure?.url || "";
-        
-        if (sourceImageUrl) {
-          const imageSource = articlePageImageUrl ? 'source article page' : (item.imageUrl ? 'source article page' : 'RSS feed');
-          console.log(`[Pipeline] ✅ Found ${imageSource} image: ${sourceImageUrl.substring(0, 80)}...`);
+      // Step 8: Upload source images to Railbucket if needed (Grok images are already uploaded)
+      // If we have a source image that hasn't been uploaded to Railbucket yet, upload it now
+      // Note: Grok images are already uploaded to Railbucket, so they'll have 'railbucket' in the URL
+      // Only upload if this is a source image (not a Grok image)
+      if (grokFailed && imageUrl && !imageUrl.includes('railbucket')) {
+        const sourceImageUrl = imageUrl;
+        const imageSource = articlePageImageUrl ? 'source article page' : (item.imageUrl ? 'RSS feed' : 'RSS enclosure');
+        console.log(`[Pipeline] Uploading ${imageSource} image to Railbucket...`);
+        try {
+          const filename = `${slugify(blogTitle, { lower: true, strict: true })}-${Date.now()}.png`;
+          imageUrl = await uploadImageToRailbucket(sourceImageUrl, filename);
+          console.log(`[Pipeline] ✅ Source image uploaded to Railbucket successfully`);
+        } catch (uploadError: any) {
+          console.error(`[Pipeline] ⚠️  Source image upload failed: ${uploadError.message}`);
           
-          // Try to upload source image to Railbucket
-          console.log(`[Pipeline] Uploading ${imageSource} image to Railbucket...`);
-          try {
-            const filename = `${slugify(blogTitle, { lower: true, strict: true })}-${Date.now()}.png`;
-            imageUrl = await uploadImageToRailbucket(sourceImageUrl, filename);
-            console.log(`[Pipeline] ✅ Source image uploaded to Railbucket successfully`);
-          } catch (uploadError: any) {
-            console.error(`[Pipeline] ⚠️  Source image upload failed: ${uploadError.message}`);
-            
-            // If it's already a valid URL (CDN, signed URL, etc.), use it directly
-            if (sourceImageUrl.startsWith('http://') || sourceImageUrl.startsWith('https://')) {
-              console.log(`[Pipeline] Using source image URL directly (not uploading to Railbucket)`);
-              imageUrl = sourceImageUrl;
-            } else {
-              // Source image URL is invalid - use placeholder
-              console.error(`[Pipeline] Source image URL is invalid, using placeholder`);
-              imageUrl = "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80";
-            }
+          // If it's already a valid URL (CDN, signed URL, etc.), use it directly
+          if (sourceImageUrl.startsWith('http://') || sourceImageUrl.startsWith('https://')) {
+            console.log(`[Pipeline] Using source image URL directly (not uploading to Railbucket)`);
+            imageUrl = sourceImageUrl;
+          } else {
+            // Source image URL is invalid - throw error
+            throw new Error(`Source image URL is invalid: ${sourceImageUrl}. Cannot proceed with article generation.`);
           }
-        } else {
-          // No source image found - use placeholder
-          console.log(`[Pipeline] ⚠️  No source image found, using placeholder`);
-          imageUrl = "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&q=80";
         }
+      }
+      
+      // Validate that we have an image URL before proceeding
+      if (!imageUrl) {
+        throw new Error(`No image URL obtained. Cannot proceed with article generation for: "${blogTitle}"`);
       }
 
       // Step 9: Save to database
