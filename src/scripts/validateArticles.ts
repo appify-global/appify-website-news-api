@@ -282,6 +282,24 @@ export function validateArticle(article: any): ValidationResult {
       suggestion: 'Remove FAQ section',
     });
   }
+
+  // 9. Meta description (SEO snippet: 150-160 chars recommended, max 160)
+  const metaDesc = article.metaDescription;
+  if (!metaDesc || (typeof metaDesc === "string" && metaDesc.trim().length === 0)) {
+    issues.push({
+      type: 'warning',
+      section: 'SEO',
+      message: 'Meta description is missing',
+      suggestion: 'Add a meta description (150-160 characters) for better search snippets',
+    });
+  } else if (typeof metaDesc === "string" && metaDesc.length > 160) {
+    issues.push({
+      type: 'warning',
+      section: 'SEO',
+      message: `Meta description is ${metaDesc.length} characters (max 160)`,
+      suggestion: 'Shorten to 150-160 characters so it is not truncated in search results',
+    });
+  }
   
   // Calculate score (0-100)
   const errorCount = issues.filter(i => i.type === 'error').length;
@@ -308,6 +326,7 @@ export async function validateAllArticles(): Promise<ValidationResult[]> {
       title: true,
       content: true,
       topics: true,
+      metaDescription: true,
     },
   });
   

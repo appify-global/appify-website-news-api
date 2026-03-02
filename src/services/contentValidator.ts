@@ -24,12 +24,14 @@ const GENERIC_SECTIONS = [
 ];
 
 /**
- * Validate article content before publishing
+ * Validate article content before publishing.
+ * Optionally pass metaDescription to validate SEO meta (warnings only).
  */
 export function validateArticleContent(
   content: string,
   contentBlocks: Array<{ type: string; text?: string }>,
-  primaryKeyword?: string
+  primaryKeyword?: string,
+  metaDescription?: string | null
 ): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -172,6 +174,17 @@ export function validateArticleContent(
     warnings.push(
       "Found generic phrases that could apply to any topic. Consider making content more specific to the evergreen angle."
     );
+  }
+
+  // Meta description (SEO snippet): warn if missing or over 160 chars
+  if (metaDescription !== undefined) {
+    if (!metaDescription || (typeof metaDescription === "string" && metaDescription.trim().length === 0)) {
+      warnings.push("Meta description is missing. Add one for better search snippets (recommended 150–160 characters).");
+    } else if (typeof metaDescription === "string" && metaDescription.length > 160) {
+      warnings.push(
+        `Meta description is ${metaDescription.length} characters (max 160 for search results). It may be truncated in search.`
+      );
+    }
   }
 
   return {

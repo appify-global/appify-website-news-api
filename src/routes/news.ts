@@ -103,6 +103,7 @@ newsRouter.get("/", async (req, res) => {
       `https://${req.get("host") || "appifyglobalbackend-production.up.railway.app"}`;
 
     const mapped = articles.map((article: any) => {
+      const imageUrl = `${baseUrl}/api/news/image/${article.slug}`;
       const base: Record<string, unknown> = {
         id: article.id,
         slug: article.slug,
@@ -110,7 +111,7 @@ newsRouter.get("/", async (req, res) => {
         excerpt: article.excerpt,
         topics: article.topics,
         author: article.author,
-        imageUrl: `${baseUrl}/api/news/image/${article.slug}`,
+        imageUrl,
         date: article.date.toLocaleDateString("en-AU", {
           day: "2-digit",
           month: "2-digit",
@@ -121,6 +122,16 @@ newsRouter.get("/", async (req, res) => {
         metaTitle: article.metaTitle,
         metaDescription: article.metaDescription,
         status: article.status,
+        openGraph: {
+          title: article.metaTitle || article.title,
+          description: article.metaDescription || article.excerpt,
+          imageUrl,
+        },
+        twitterCard: {
+          title: article.metaTitle || article.title,
+          description: article.metaDescription || article.excerpt,
+          imageUrl,
+        },
       };
       if (includeContent) {
         base.content = (article.content as any) || [];
@@ -217,29 +228,80 @@ newsRouter.get("/search", async (req, res) => {
       process.env.API_BASE_URL ||
       `https://${req.get("host") || "appifyglobalbackend-production.up.railway.app"}`;
 
-    const mapped = unique.map((article: any) => ({
-      id: article.id,
-      slug: article.slug,
-      title: article.title,
-      excerpt: article.excerpt,
-      topics: article.topics,
-      author: article.author,
-      imageUrl: `${baseUrl}/api/news/image/${article.slug}`,
-      date: article.date.toLocaleDateString("en-AU", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
-      timestamp: getRelativeTime(article.createdAt),
-      isFeatured: article.isFeatured,
-      content: (article.content as any) || [],
-    }));
+    const mapped = unique.map((article: any) => {
+      const imageUrl = `${baseUrl}/api/news/image/${article.slug}`;
+      return {
+        id: article.id,
+        slug: article.slug,
+        title: article.title,
+        excerpt: article.excerpt,
+        topics: article.topics,
+        author: article.author,
+        imageUrl,
+        date: article.date.toLocaleDateString("en-AU", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
+        timestamp: getRelativeTime(article.createdAt),
+        isFeatured: article.isFeatured,
+        content: (article.content as any) || [],
+        openGraph: {
+          title: article.metaTitle || article.title,
+          description: article.metaDescription || article.excerpt,
+          imageUrl,
+        },
+        twitterCard: {
+          title: article.metaTitle || article.title,
+          description: article.metaDescription || article.excerpt,
+          imageUrl,
+        },
+      };
+    });
 
     res.setHeader("Cache-Control", "public, max-age=30, stale-while-revalidate=60");
     res.json(mapped);
   } catch (error: any) {
     console.error("Error searching articles:", error);
     res.status(500).json({ error: "Failed to search articles" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// GET /api/news/sitemap.xml — Sitemap for crawlers (must be before /:slug)
+// ---------------------------------------------------------------------------
+
+newsRouter.get("/sitemap.xml", async (_req, res) => {
+  try {
+    const siteBaseUrl =
+      process.env.FRONTEND_URL ||
+      process.env.SITE_URL ||
+      `https://${_req.get("host") || "appifyglobalbackend-production.up.railway.app"}`;
+
+    const articles = await prisma.article.findMany({
+      where: { status: "published" },
+      orderBy: { updatedAt: "desc" },
+      select: { slug: true, updatedAt: true },
+    });
+
+    const urlEntries = articles
+      .map(
+        (a) =>
+          `  <url><loc>${escapeXml(siteBaseUrl.replace(/\/$/, "") + "/news/" + a.slug)}</loc><lastmod>${a.updatedAt.toISOString()}</lastmod></url>`
+      )
+      .join("\n");
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urlEntries}
+</urlset>`;
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=300, stale-while-revalidate=600");
+    res.send(xml);
+  } catch (error) {
+    console.error("Error generating sitemap:", error);
+    res.status(500).send('<?xml version="1.0"?><error>Failed to generate sitemap</error>');
   }
 });
 
@@ -263,6 +325,26 @@ newsRouter.get("/:slug", async (req, res) => {
     const baseUrl =
       process.env.API_BASE_URL ||
       `https://${req.get("host") || "appifyglobalbackend-production.up.railway.app"}`;
+    const siteBaseUrl =
+      process.env.FRONTEND_URL ||
+      process.env.SITE_URL ||
+      baseUrl;
+    const imageUrl = `${baseUrl}/api/news/image/${article.slug}`;
+
+    const jsonLd = buildArticleJsonLd(
+      {
+        slug: article.slug,
+        title: article.title,
+        excerpt: article.excerpt,
+        author: article.author,
+        date: article.date,
+        updatedAt: article.updatedAt,
+        metaTitle: article.metaTitle,
+        metaDescription: article.metaDescription,
+      },
+      imageUrl,
+      siteBaseUrl
+    );
 
     res.setHeader("Cache-Control", "public, max-age=120, stale-while-revalidate=300");
     res.json({
@@ -272,7 +354,7 @@ newsRouter.get("/:slug", async (req, res) => {
       excerpt: article.excerpt,
       topics: article.topics,
       author: article.author,
-      imageUrl: `${baseUrl}/api/news/image/${article.slug}`,
+      imageUrl,
       date: article.date.toLocaleDateString("en-AU", {
         day: "2-digit",
         month: "2-digit",
@@ -284,6 +366,17 @@ newsRouter.get("/:slug", async (req, res) => {
       metaDescription: article.metaDescription,
       status: article.status,
       content: (article.content as any) || [],
+      jsonLd,
+      openGraph: {
+        title: article.metaTitle || article.title,
+        description: article.metaDescription || article.excerpt,
+        imageUrl,
+      },
+      twitterCard: {
+        title: article.metaTitle || article.title,
+        description: article.metaDescription || article.excerpt,
+        imageUrl,
+      },
     });
   } catch (error) {
     console.error("Error fetching article:", error);
@@ -451,8 +544,59 @@ newsRouter.get("/image/:slug", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Helper
+// Helpers
 // ---------------------------------------------------------------------------
+
+function escapeXml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+/**
+ * Build schema.org Article JSON-LD for SEO rich results.
+ * Frontend can inject this into <script type="application/ld+json">.
+ */
+function buildArticleJsonLd(
+  article: {
+    slug: string;
+    title: string;
+    excerpt: string;
+    author: string;
+    date: Date;
+    updatedAt: Date;
+    metaTitle: string | null;
+    metaDescription: string | null;
+  },
+  imageUrl: string,
+  siteBaseUrl: string
+): Record<string, unknown> {
+  const articleUrl = `${siteBaseUrl}/news/${article.slug}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: article.metaTitle || article.title,
+    description: article.metaDescription || article.excerpt,
+    image: imageUrl,
+    datePublished: article.date.toISOString(),
+    dateModified: article.updatedAt.toISOString(),
+    author: {
+      "@type": "Person",
+      name: article.author,
+    },
+    publisher: {
+      "@type": "Organization",
+      name: "Appify",
+    },
+    mainEntityOfPage: {
+      "@type": "WebPage",
+      "@id": articleUrl,
+    },
+  };
+}
 
 function getRelativeTime(date: Date): string {
   const now = new Date();
