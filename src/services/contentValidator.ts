@@ -25,13 +25,14 @@ const GENERIC_SECTIONS = [
 
 /**
  * Validate article content before publishing.
- * Optionally pass metaDescription to validate SEO meta (warnings only).
+ * Optionally pass metaDescription and metaTitle to validate SEO meta (warnings only).
  */
 export function validateArticleContent(
   content: string,
   contentBlocks: Array<{ type: string; text?: string }>,
   primaryKeyword?: string,
-  metaDescription?: string | null
+  metaDescription?: string | null,
+  metaTitle?: string | null
 ): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -183,6 +184,17 @@ export function validateArticleContent(
     } else if (typeof metaDescription === "string" && metaDescription.length > 160) {
       warnings.push(
         `Meta description is ${metaDescription.length} characters (max 160 for search results). It may be truncated in search.`
+      );
+    }
+  }
+
+  // Meta title (SEO title tag): warn if missing or over 60 chars
+  if (metaTitle !== undefined) {
+    if (!metaTitle || (typeof metaTitle === "string" && metaTitle.trim().length === 0)) {
+      warnings.push("Meta title is missing. Add one for search results (max 60 characters recommended).");
+    } else if (typeof metaTitle === "string" && metaTitle.length > 60) {
+      warnings.push(
+        `Meta title is ${metaTitle.length} characters (max 60 for search results). It may be truncated in search.`
       );
     }
   }

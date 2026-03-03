@@ -300,6 +300,24 @@ export function validateArticle(article: any): ValidationResult {
       suggestion: 'Shorten to 150-160 characters so it is not truncated in search results',
     });
   }
+
+  // 10. Meta title (SEO title tag: max 60 chars)
+  const metaTitle = article.metaTitle;
+  if (!metaTitle || (typeof metaTitle === "string" && metaTitle.trim().length === 0)) {
+    issues.push({
+      type: 'warning',
+      section: 'SEO',
+      message: 'Meta title is missing',
+      suggestion: 'Add a meta title (max 60 characters) for search results',
+    });
+  } else if (typeof metaTitle === "string" && metaTitle.length > 60) {
+    issues.push({
+      type: 'warning',
+      section: 'SEO',
+      message: `Meta title is ${metaTitle.length} characters (max 60)`,
+      suggestion: 'Shorten to 60 characters so it is not truncated in search results',
+    });
+  }
   
   // Calculate score (0-100)
   const errorCount = issues.filter(i => i.type === 'error').length;
@@ -327,6 +345,7 @@ export async function validateAllArticles(): Promise<ValidationResult[]> {
       content: true,
       topics: true,
       metaDescription: true,
+      metaTitle: true,
     },
   });
   
