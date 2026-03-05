@@ -16,7 +16,8 @@ app.use(compression());
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || "http://localhost:3000",
-    "https://websitestagingnimeshan-production.up.railway.app",
+    "https://www.appify.global",
+    "https://appify.global",
     "http://localhost:3000",
   ],
   methods: ["GET", "POST", "PUT", "DELETE"],
