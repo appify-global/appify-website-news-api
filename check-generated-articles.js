@@ -30,10 +30,11 @@ async function checkArticles() {
     
     const result = await makeRequest('/api/news?limit=5');
     
-    if (result.status === 200 && Array.isArray(result.data)) {
-      console.log(`Found ${result.data.length} recent article(s):\n`);
+    const list = result.data?.articles ?? (Array.isArray(result.data) ? result.data : []);
+    if (result.status === 200 && list.length >= 0) {
+      console.log(`Found ${list.length} recent article(s):\n`);
       
-      result.data.forEach((article, index) => {
+      list.forEach((article, index) => {
         console.log(`${index + 1}. ${article.title}`);
         console.log(`   Slug: ${article.slug}`);
         console.log(`   Topics: ${article.topics}`);

@@ -26,8 +26,11 @@ async function testAPI() {
     if (!newsRes.ok) {
       throw new Error(`HTTP ${newsRes.status}`);
     }
-    const articles = await newsRes.json();
-    console.log(`   ✅ Found ${articles.length} published articles`);
+    const data = await newsRes.json();
+    const articles = data.articles ?? (Array.isArray(data) ? data : []);
+    const total = data.total ?? articles.length;
+    const hasMore = data.hasMore ?? data.has_more;
+    console.log(`   ✅ Found ${articles.length} published articles (total: ${total}, hasMore: ${!!hasMore})`);
     
     if (articles.length > 0) {
       const first = articles[0];

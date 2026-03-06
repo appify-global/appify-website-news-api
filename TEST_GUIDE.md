@@ -84,7 +84,13 @@ After generation, check that articles have:
    ```
 
 2. **Check API endpoint:**
-   - `GET http://localhost:4000/api/news` - Should return articles
+   - `GET http://localhost:4000/api/news` - Returns paginated articles. Response shape:
+     - `articles` – array of article objects for the requested page
+     - `total` – total count of articles matching the filter
+     - `totalPages` / `total_pages` – number of pages
+     - `hasMore` / `has_more` – true if more pages exist (frontend can stop when false)
+     - `page`, `limit`, `offset` – current page and size
+   - Query: `?limit=50&offset=0` (default limit 50, max 100). No date filter – all published articles are returned; use pagination until `hasMore` is false to load all.
    - `GET http://localhost:4000/api/news/[slug]` - Should return single article
 
 3. **Verify on frontend:**

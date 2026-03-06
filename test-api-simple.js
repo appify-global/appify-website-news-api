@@ -11,7 +11,8 @@ function testAPI() {
     
     res.on('end', () => {
       try {
-        const articles = JSON.parse(data);
+        const response = JSON.parse(data);
+        const articles = response.articles ?? (Array.isArray(response) ? response : []);
         console.log(`✅ API is working! Found ${articles.length} published articles\n`);
         
         if (articles.length > 0) {

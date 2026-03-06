@@ -53,7 +53,7 @@ async function deleteArticles() {
       return;
     }
 
-    const allArticles = result.data;
+    const allArticles = result.data?.articles ?? (Array.isArray(result.data) ? result.data : []);
     const articlesToDeleteFound = [];
 
     // Find articles by title

@@ -75,8 +75,8 @@ newsRouter.get("/", async (req, res) => {
       where.isFeatured = true;
     }
 
-    const take = limit ? parseInt(limit) : 50;
-    const skip = offset ? parseInt(offset) : 0;
+    const take = Math.min(limit ? parseInt(limit) : 50, 100);
+    const skip = Math.max(offset ? parseInt(offset) : 0, 0);
 
     // Check in-memory cache (only for listing-mode requests without content)
     if (!includeContent) {
@@ -90,13 +90,16 @@ newsRouter.get("/", async (req, res) => {
       }
     }
 
-    const articles = await prisma.article.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take,
-      skip,
-      ...(includeContent ? {} : { select: LISTING_SELECT }),
-    });
+    const [articles, total] = await Promise.all([
+      prisma.article.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take,
+        skip,
+        ...(includeContent ? {} : { select: LISTING_SELECT }),
+      }),
+      prisma.article.count({ where }),
+    ]);
 
     const baseUrl =
       process.env.API_BASE_URL ||
@@ -139,7 +142,23 @@ newsRouter.get("/", async (req, res) => {
       return base;
     });
 
-    const json = JSON.stringify(mapped);
+    const page = Math.floor(skip / take) + 1;
+    const totalPages = Math.max(1, Math.ceil(total / take));
+    const hasMore = skip + articles.length < total;
+
+    const payload = {
+      articles: mapped,
+      total,
+      total_pages: totalPages,
+      totalPages,
+      has_more: hasMore,
+      hasMore,
+      page,
+      limit: take,
+      offset: skip,
+    };
+
+    const json = JSON.stringify(payload);
 
     // Populate cache for listing requests
     if (!includeContent) {

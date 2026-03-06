@@ -25,10 +25,12 @@ async function main() {
   console.log('📰 Checking existing articles...\n');
   
   try {
-    const articles = await makeRequest('/api/news?status=published&limit=20');
-    if (articles.status === 200 && Array.isArray(articles.data)) {
-      console.log(`Found ${articles.data.length} published articles:\n`);
-      articles.data.forEach((a, i) => {
+    const result = await makeRequest('/api/news?status=published&limit=20');
+    const list = result.data?.articles ?? (Array.isArray(result.data) ? result.data : []);
+    if (result.status === 200 && list.length >= 0) {
+      const total = result.data?.total ?? list.length;
+      console.log(`Found ${list.length} published articles (page 1, total ${total}):\n`);
+      list.forEach((a, i) => {
         console.log(`${i + 1}. ${a.title}`);
         console.log(`   Slug: ${a.slug}`);
         console.log(`   Topics: ${a.topics}`);
@@ -36,7 +38,7 @@ async function main() {
       });
       
       // Check for the startup accelerator article specifically
-      const accelerator = articles.data.find(a => a.slug.includes('startup-accelerator'));
+      const accelerator = list.find(a => a.slug.includes('startup-accelerator'));
       if (accelerator) {
         console.log('✅ Found startup accelerator article!');
       } else {
